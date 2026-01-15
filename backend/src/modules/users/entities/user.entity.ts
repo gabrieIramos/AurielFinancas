@@ -5,10 +5,10 @@ import {
   CreateDateColumn,
   OneToMany,
 } from 'typeorm';
-import { Account } from '../accounts/entities/account.entity';
-import { Transaction } from '../transactions/entities/transaction.entity';
-import { Investment } from '../investments/entities/investment.entity';
-import { NetWorthHistory } from '../net-worth/entities/net-worth-history.entity';
+import { Account } from '../../accounts/entities/account.entity';
+import { Transaction } from '../../transactions/entities/transaction.entity';
+import { Investment } from '../../investments/entities/investment.entity';
+import { NetWorthHistory } from '../../net-worth/entities/net-worth-history.entity';
 
 @Entity('users')
 export class User {

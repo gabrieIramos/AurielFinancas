@@ -29,6 +29,9 @@ import { AiModule } from './modules/ai/ai.module';
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
         synchronize: configService.get('NODE_ENV') === 'development',
         logging: configService.get('NODE_ENV') === 'development',
+        ssl: configService.get<string>('NODE_ENV') === 'production'
+          ? { rejectUnauthorized: true }
+          : { rejectUnauthorized: false },
       }),
       inject: [ConfigService],
     }),
@@ -43,4 +46,4 @@ import { AiModule } from './modules/ai/ai.module';
     AiModule,
   ],
 })
-export class AppModule {}
+export class AppModule { }
