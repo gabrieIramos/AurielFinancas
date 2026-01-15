@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
+import { useTheme } from "../contexts/ThemeContext";
 
 // Mock Data - Ativos
 const ativosIniciais = [
@@ -75,6 +76,7 @@ export default function CarteiraScreen() {
   const [ativos, setAtivos] = useState<Ativo[]>(ativosIniciais);
   const [filtroTipo, setFiltroTipo] = useState<"Todos" | "Ação" | "FII">("Todos");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const { theme } = useTheme();
 
   // Form states
   const [novoTicker, setNovoTicker] = useState("");
@@ -138,7 +140,7 @@ export default function CarteiraScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white pb-4">
+    <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} pb-4`}>
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-6">
@@ -146,10 +148,10 @@ export default function CarteiraScreen() {
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <button className="p-2 bg-emerald-600 rounded-full hover:bg-emerald-700 transition-colors">
-                <Plus className="w-5 h-5" />
+                <Plus className="w-5 h-5 text-white" />
               </button>
             </DialogTrigger>
-            <DialogContent className="bg-zinc-900 border-zinc-800 text-white max-w-[380px]">
+            <DialogContent className={`${theme === "dark" ? "bg-zinc-900 border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"} max-w-[380px]`}>
               <DialogHeader>
                 <DialogTitle>Adicionar Ativo</DialogTitle>
               </DialogHeader>
@@ -161,7 +163,7 @@ export default function CarteiraScreen() {
                     placeholder="Ex: ITUB4"
                     value={novoTicker}
                     onChange={(e) => setNovoTicker(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white mt-1"
+                    className={`${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} mt-1`}
                   />
                 </div>
                 <div>
@@ -171,7 +173,7 @@ export default function CarteiraScreen() {
                     placeholder="Ex: Itaú Unibanco"
                     value={novoNome}
                     onChange={(e) => setNovoNome(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white mt-1"
+                    className={`${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} mt-1`}
                   />
                 </div>
                 <div>
@@ -180,7 +182,7 @@ export default function CarteiraScreen() {
                     id="tipo"
                     value={novoTipo}
                     onChange={(e) => setNovoTipo(e.target.value as "Ação" | "FII")}
-                    className="w-full bg-zinc-800 border border-zinc-700 text-white rounded-md px-3 py-2 mt-1"
+                    className={`w-full ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} border rounded-md px-3 py-2 mt-1`}
                   >
                     <option value="Ação">Ação</option>
                     <option value="FII">FII</option>
@@ -194,7 +196,7 @@ export default function CarteiraScreen() {
                     placeholder="100"
                     value={novaQuantidade}
                     onChange={(e) => setNovaQuantidade(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white mt-1"
+                    className={`${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} mt-1`}
                   />
                 </div>
                 <div>
@@ -206,7 +208,7 @@ export default function CarteiraScreen() {
                     placeholder="28.50"
                     value={novoPreco}
                     onChange={(e) => setNovoPreco(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white mt-1"
+                    className={`${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} mt-1`}
                   />
                 </div>
                 <div>
@@ -216,7 +218,7 @@ export default function CarteiraScreen() {
                     placeholder="Ex: Financeiro"
                     value={novoSetor}
                     onChange={(e) => setNovoSetor(e.target.value)}
-                    className="bg-zinc-800 border-zinc-700 text-white mt-1"
+                    className={`${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} mt-1`}
                   />
                 </div>
                 <Button
@@ -233,7 +235,7 @@ export default function CarteiraScreen() {
         {/* Resumo */}
         <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 mb-6">
           <p className="text-blue-100 text-sm mb-2">Valor Total da Carteira</p>
-          <h2 className="text-3xl mb-3">{formatCurrency(valorTotal)}</h2>
+          <h2 className="text-3xl mb-3 text-white">{formatCurrency(valorTotal)}</h2>
           <div className="flex items-center gap-2">
             {lucroTotal >= 0 ? (
               <TrendingUp className="w-4 h-4 text-blue-200" />
@@ -256,7 +258,9 @@ export default function CarteiraScreen() {
               className={`px-4 py-2 rounded-full text-sm transition-colors ${
                 filtroTipo === tipo
                   ? "bg-emerald-600 text-white"
-                  : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800"
+                  : theme === "dark"
+                    ? "bg-zinc-900 text-zinc-400 hover:bg-zinc-800"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
               }`}
             >
               {tipo}
@@ -274,49 +278,49 @@ export default function CarteiraScreen() {
           const peso = (valorPosicao / valorTotal) * 100;
 
           return (
-            <div key={ativo.id} className="bg-zinc-900 rounded-xl p-4">
+            <div key={ativo.id} className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <h3>{ativo.ticker}</h3>
-                    <span className="px-2 py-0.5 bg-zinc-800 text-zinc-300 text-xs rounded">
+                    <span className={`px-2 py-0.5 ${theme === "dark" ? "bg-zinc-800 text-zinc-300" : "bg-zinc-200 text-zinc-700"} text-xs rounded`}>
                       {ativo.tipo}
                     </span>
                   </div>
-                  <p className="text-zinc-400 text-sm">{ativo.nome}</p>
-                  <p className="text-zinc-500 text-xs mt-1">{ativo.setor}</p>
+                  <p className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"} text-sm`}>{ativo.nome}</p>
+                  <p className={`${theme === "dark" ? "text-zinc-500" : "text-zinc-500"} text-xs mt-1`}>{ativo.setor}</p>
                 </div>
                 <div className="text-right">
                   <p className={`${lucro >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                     {rentabilidade >= 0 ? "+" : ""}
                     {rentabilidade.toFixed(2)}%
                   </p>
-                  <p className="text-xs text-zinc-500 mt-1">{peso.toFixed(1)}% da carteira</p>
+                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"} mt-1`}>{peso.toFixed(1)}% da carteira</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 pt-3 border-t border-zinc-800">
+              <div className={`grid grid-cols-3 gap-3 pt-3 border-t ${theme === "dark" ? "border-zinc-800" : "border-zinc-200"}`}>
                 <div>
-                  <p className="text-xs text-zinc-500 mb-1">Quantidade</p>
+                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Quantidade</p>
                   <p className="text-sm">{ativo.quantidade}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-zinc-500 mb-1">Preço Médio</p>
+                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Preço Médio</p>
                   <p className="text-sm">{formatCurrency(ativo.precoMedio)}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-zinc-500 mb-1">Preço Atual</p>
+                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Preço Atual</p>
                   <p className="text-sm">{formatCurrency(ativo.precoAtual)}</p>
                 </div>
               </div>
 
-              <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
+              <div className={`mt-3 pt-3 border-t ${theme === "dark" ? "border-zinc-800" : "border-zinc-200"} flex items-center justify-between`}>
                 <div>
-                  <p className="text-xs text-zinc-500 mb-1">Valor da Posição</p>
+                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Valor da Posição</p>
                   <p>{formatCurrency(valorPosicao)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-xs text-zinc-500 mb-1">Lucro/Prejuízo</p>
+                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Lucro/Prejuízo</p>
                   <p className={lucro >= 0 ? "text-emerald-400" : "text-red-400"}>
                     {lucro >= 0 ? "+" : ""}
                     {formatCurrency(lucro)}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Sparkles, AlertTriangle, CheckCircle2, Send, TrendingUp, PieChart } from "lucide-react";
+import { useTheme } from "../contexts/ThemeContext";
 
 // Mock Data - Insights
 const insightsData = {
@@ -62,6 +63,7 @@ export default function IAScreen() {
     },
   ]);
   const [inputValue, setInputValue] = useState("");
+  const { theme } = useTheme();
 
   const handleSendMessage = () => {
     if (!inputValue.trim()) return;
@@ -106,16 +108,16 @@ export default function IAScreen() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white flex flex-col">
+    <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} flex flex-col`}>
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center gap-3 mb-6">
           <div className="p-2 bg-purple-600 rounded-full">
-            <Sparkles className="w-6 h-6" />
+            <Sparkles className="w-6 h-6 text-white" />
           </div>
           <div>
             <h1 className="text-2xl">Inteligência Financeira</h1>
-            <p className="text-zinc-400 text-sm">Insights personalizados para você</p>
+            <p className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"} text-sm`}>Insights personalizados para você</p>
           </div>
         </div>
 
@@ -125,7 +127,7 @@ export default function IAScreen() {
             <div>
               <p className="text-purple-100 text-sm mb-1">Score de Saúde Financeira</p>
               <div className="flex items-center gap-2">
-                <h2 className="text-4xl">{insightsData.saudeFinanceira.score}</h2>
+                <h2 className="text-4xl text-white">{insightsData.saudeFinanceira.score}</h2>
                 <span className="text-purple-200">/100</span>
               </div>
             </div>
@@ -150,7 +152,7 @@ export default function IAScreen() {
           </h3>
           <div className="space-y-3">
             {insightsData.alertas.map((alerta) => (
-              <div key={alerta.id} className="bg-zinc-900 rounded-xl p-4">
+              <div key={alerta.id} className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
                 <div className="flex items-start gap-3">
                   <div
                     className={`p-2 rounded-full mt-1 ${
@@ -167,7 +169,7 @@ export default function IAScreen() {
                   </div>
                   <div className="flex-1">
                     <h4 className="mb-1">{alerta.titulo}</h4>
-                    <p className="text-zinc-400 text-sm mb-2">{alerta.descricao}</p>
+                    <p className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"} text-sm mb-2`}>{alerta.descricao}</p>
                     {alerta.valor && (
                       <p className="text-emerald-400 text-sm">
                         Economia potencial: R$ {alerta.valor.toFixed(2)}
@@ -188,7 +190,7 @@ export default function IAScreen() {
           </h3>
           <div className="space-y-3">
             {insightsData.analiseRisco.map((analise) => (
-              <div key={analise.id} className="bg-zinc-900 rounded-xl p-4">
+              <div key={analise.id} className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
                 <div className="flex items-start gap-3">
                   <div
                     className={`px-2 py-1 rounded text-xs ${
@@ -201,7 +203,7 @@ export default function IAScreen() {
                   </div>
                   <div className="flex-1">
                     <h4 className="mb-1">{analise.titulo}</h4>
-                    <p className="text-zinc-400 text-sm">{analise.descricao}</p>
+                    <p className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"} text-sm`}>{analise.descricao}</p>
                   </div>
                 </div>
               </div>
@@ -212,11 +214,11 @@ export default function IAScreen() {
         {/* Sugestões */}
         <div className="mb-6">
           <h3 className="mb-3">Sugestões Personalizadas</h3>
-          <div className="bg-zinc-900 rounded-xl p-4 space-y-3">
+          <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4 space-y-3`}>
             {insightsData.sugestoes.map((sugestao, index) => (
               <div key={index} className="flex items-start gap-3">
                 <CheckCircle2 className="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" />
-                <p className="text-zinc-300 text-sm">{sugestao}</p>
+                <p className={`${theme === "dark" ? "text-zinc-300" : "text-zinc-700"} text-sm`}>{sugestao}</p>
               </div>
             ))}
           </div>
@@ -231,7 +233,7 @@ export default function IAScreen() {
         </h3>
         
         {/* Messages */}
-        <div className="flex-1 bg-zinc-900 rounded-xl p-4 mb-4 overflow-y-auto max-h-[300px] space-y-3">
+        <div className={`flex-1 ${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4 mb-4 overflow-y-auto max-h-[300px] space-y-3`}>
           {messages.map((message) => (
             <div
               key={message.id}
@@ -241,7 +243,9 @@ export default function IAScreen() {
                 className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                   message.tipo === "user"
                     ? "bg-emerald-600 text-white"
-                    : "bg-zinc-800 text-zinc-100"
+                    : theme === "dark"
+                      ? "bg-zinc-800 text-zinc-100"
+                      : "bg-zinc-200 text-zinc-900"
                 }`}
               >
                 <p className="text-sm">{message.texto}</p>
@@ -258,13 +262,17 @@ export default function IAScreen() {
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-            className="flex-1 bg-zinc-900 text-white px-4 py-3 rounded-xl border border-zinc-800 focus:outline-none focus:border-purple-500 transition-colors"
+            className={`flex-1 ${
+              theme === "dark"
+                ? "bg-zinc-900 text-white border-zinc-800 focus:border-purple-500"
+                : "bg-zinc-50 text-black border-zinc-200 focus:border-purple-500"
+            } px-4 py-3 rounded-xl border focus:outline-none transition-colors`}
           />
           <button
             onClick={handleSendMessage}
             className="p-3 bg-purple-600 rounded-xl hover:bg-purple-700 transition-colors"
           >
-            <Send className="w-5 h-5" />
+            <Send className="w-5 h-5 text-white" />
           </button>
         </div>
       </div>

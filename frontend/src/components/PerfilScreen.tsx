@@ -1,4 +1,6 @@
-import { User, Mail, Phone, Bell, Shield, HelpCircle, LogOut, ChevronRight, Upload, FileText } from "lucide-react";
+import { User, Mail, Phone, Bell, Shield, HelpCircle, LogOut, ChevronRight, FileText, Moon, Sun } from "lucide-react";
+import { useTheme } from "../contexts/ThemeContext";
+import { Switch } from "./ui/switch";
 
 // Mock user data
 const userData = {
@@ -14,7 +16,6 @@ const menuItems = [
     categoria: "Conta",
     items: [
       { icon: User, label: "Informações Pessoais", badge: null },
-      { icon: Upload, label: "Importar OFX", badge: "Novo" },
       { icon: FileText, label: "Exportar Dados", badge: null },
     ],
   },
@@ -34,56 +35,81 @@ const menuItems = [
 ];
 
 export default function PerfilScreen() {
+  const { theme, toggleTheme } = useTheme();
+
   return (
-    <div className="min-h-screen bg-black text-white pb-4">
+    <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} pb-4`}>
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <h1 className="text-2xl mb-6">Perfil</h1>
 
         {/* User Card */}
-        <div className="bg-gradient-to-br from-zinc-800 to-zinc-900 rounded-2xl p-6 mb-6">
+        <div className={`${theme === "dark" ? "bg-gradient-to-br from-zinc-800 to-zinc-900" : "bg-gradient-to-br from-zinc-100 to-zinc-200"} rounded-2xl p-6 mb-6`}>
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center">
-              <span className="text-2xl">RS</span>
+              <span className="text-2xl text-white">RS</span>
             </div>
             <div className="flex-1">
               <h2 className="text-xl mb-1">{userData.nome}</h2>
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 bg-emerald-600 text-xs rounded-full">
+                <span className="px-2 py-0.5 bg-emerald-600 text-xs rounded-full text-white">
                   {userData.membro}
                 </span>
-                <span className="text-zinc-400 text-sm">
+                <span className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"} text-sm`}>
                   Membro desde {userData.dataCadastro}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="space-y-3 pt-4 border-t border-zinc-700">
+          <div className={`space-y-3 pt-4 border-t ${theme === "dark" ? "border-zinc-700" : "border-zinc-300"}`}>
             <div className="flex items-center gap-3">
-              <Mail className="w-4 h-4 text-zinc-400" />
-              <span className="text-sm text-zinc-300">{userData.email}</span>
+              <Mail className={`w-4 h-4 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`} />
+              <span className={`text-sm ${theme === "dark" ? "text-zinc-300" : "text-zinc-700"}`}>{userData.email}</span>
             </div>
             <div className="flex items-center gap-3">
-              <Phone className="w-4 h-4 text-zinc-400" />
-              <span className="text-sm text-zinc-300">{userData.telefone}</span>
+              <Phone className={`w-4 h-4 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`} />
+              <span className={`text-sm ${theme === "dark" ? "text-zinc-300" : "text-zinc-700"}`}>{userData.telefone}</span>
             </div>
+          </div>
+        </div>
+
+        {/* Theme Toggle */}
+        <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4 mb-6`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {theme === "dark" ? (
+                <Moon className="w-5 h-5 text-blue-400" />
+              ) : (
+                <Sun className="w-5 h-5 text-yellow-500" />
+              )}
+              <div>
+                <p className={theme === "dark" ? "text-white" : "text-black"}>Modo Escuro</p>
+                <p className={`text-xs ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
+                  {theme === "dark" ? "Ativado" : "Desativado"}
+                </p>
+              </div>
+            </div>
+            <Switch
+              checked={theme === "dark"}
+              onCheckedChange={toggleTheme}
+            />
           </div>
         </div>
 
         {/* Statistics */}
         <div className="grid grid-cols-3 gap-3 mb-6">
-          <div className="bg-zinc-900 rounded-xl p-4 text-center">
+          <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4 text-center`}>
             <p className="text-2xl text-emerald-400 mb-1">247</p>
-            <p className="text-xs text-zinc-400">Transações</p>
+            <p className={`text-xs ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>Transações</p>
           </div>
-          <div className="bg-zinc-900 rounded-xl p-4 text-center">
+          <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4 text-center`}>
             <p className="text-2xl text-blue-400 mb-1">12</p>
-            <p className="text-xs text-zinc-400">Ativos</p>
+            <p className={`text-xs ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>Ativos</p>
           </div>
-          <div className="bg-zinc-900 rounded-xl p-4 text-center">
+          <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4 text-center`}>
             <p className="text-2xl text-purple-400 mb-1">6</p>
-            <p className="text-xs text-zinc-400">Meses</p>
+            <p className={`text-xs ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>Meses</p>
           </div>
         </div>
 
@@ -91,28 +117,32 @@ export default function PerfilScreen() {
         <div className="space-y-6">
           {menuItems.map((section, sectionIndex) => (
             <div key={sectionIndex}>
-              <h3 className="text-sm text-zinc-500 mb-3 px-2">{section.categoria}</h3>
-              <div className="bg-zinc-900 rounded-xl overflow-hidden">
+              <h3 className={`text-sm ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-3 px-2`}>{section.categoria}</h3>
+              <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl overflow-hidden`}>
                 {section.items.map((item, itemIndex) => {
                   const Icon = item.icon;
                   return (
                     <button
                       key={itemIndex}
-                      className={`w-full flex items-center justify-between p-4 hover:bg-zinc-800 transition-colors ${
-                        itemIndex !== section.items.length - 1 ? "border-b border-zinc-800" : ""
+                      className={`w-full flex items-center justify-between p-4 ${
+                        theme === "dark" ? "hover:bg-zinc-800" : "hover:bg-zinc-100"
+                      } transition-colors ${
+                        itemIndex !== section.items.length - 1 
+                          ? theme === "dark" ? "border-b border-zinc-800" : "border-b border-zinc-200"
+                          : ""
                       }`}
                     >
                       <div className="flex items-center gap-3">
-                        <Icon className="w-5 h-5 text-zinc-400" />
-                        <span className="text-white">{item.label}</span>
+                        <Icon className={`w-5 h-5 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`} />
+                        <span className={theme === "dark" ? "text-white" : "text-black"}>{item.label}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         {item.badge && (
-                          <span className="px-2 py-0.5 bg-emerald-600 text-xs rounded-full">
+                          <span className="px-2 py-0.5 bg-emerald-600 text-xs rounded-full text-white">
                             {item.badge}
                           </span>
                         )}
-                        <ChevronRight className="w-5 h-5 text-zinc-500" />
+                        <ChevronRight className={`w-5 h-5 ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />
                       </div>
                     </button>
                   );
@@ -122,34 +152,20 @@ export default function PerfilScreen() {
           ))}
         </div>
 
-        {/* Import OFX Section */}
-        <div className="mt-6 bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-white/20 rounded-full">
-              <Upload className="w-6 h-6" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg mb-2">Importar Arquivos OFX</h3>
-              <p className="text-emerald-100 text-sm mb-4">
-                Faça upload de extratos bancários e faturas de cartão de crédito para sincronizar automaticamente suas transações.
-              </p>
-              <button className="px-4 py-2 bg-white text-emerald-700 rounded-lg hover:bg-emerald-50 transition-colors">
-                Selecionar Arquivo
-              </button>
-            </div>
-          </div>
-        </div>
-
         {/* Logout Button */}
-        <button className="w-full mt-6 bg-red-900/30 text-red-400 p-4 rounded-xl flex items-center justify-center gap-2 hover:bg-red-900/50 transition-colors">
+        <button className={`w-full mt-6 ${
+          theme === "dark" ? "bg-red-900/30" : "bg-red-50"
+        } text-red-400 p-4 rounded-xl flex items-center justify-center gap-2 ${
+          theme === "dark" ? "hover:bg-red-900/50" : "hover:bg-red-100"
+        } transition-colors`}>
           <LogOut className="w-5 h-5" />
           <span>Sair da Conta</span>
         </button>
 
         {/* Version Info */}
         <div className="mt-6 text-center">
-          <p className="text-zinc-500 text-xs">Versão 1.0.0</p>
-          <p className="text-zinc-600 text-xs mt-1">© 2024 FinanceApp. Todos os direitos reservados.</p>
+          <p className={`${theme === "dark" ? "text-zinc-500" : "text-zinc-400"} text-xs`}>Versão 1.0.0</p>
+          <p className={`${theme === "dark" ? "text-zinc-600" : "text-zinc-500"} text-xs mt-1`}>© 2024 FinanceApp. Todos os direitos reservados.</p>
         </div>
       </div>
     </div>
