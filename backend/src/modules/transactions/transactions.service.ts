@@ -1,10 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import {
+  Repository,
+  In,
+  Between,
+  IsNull,
+  Not,
+  LessThan,
+  MoreThanOrEqual,
+  LessThanOrEqual,
+} from 'typeorm';
 import { Transaction } from './entities/transaction.entity';
 import { Account } from '../accounts/entities/account.entity';
 import { AiService } from '../ai/ai.service';
 import * as crypto from 'crypto';
+import { addDays } from 'date-fns';
 
 @Injectable()
 export class TransactionsService {
@@ -14,162 +24,169 @@ export class TransactionsService {
     @InjectRepository(Account)
     private accountRepository: Repository<Account>,
     private aiService: AiService,
-  ) {}
+  ) { }
 
   /**
-   * Gera hash único para deduplicação
+   * Gera hash único para deduplicação.
+   * Prioriza o FITID (OFX), senão usa dados da transação (CSV).
    */
   private generateTransactionHash(
     accountId: string,
     amount: number,
     date: Date,
     description: string,
+    fitid?: string,
   ): string {
-    const data = `${accountId}|${amount}|${date.toISOString().split('T')[0]}|${description}`;
-    return crypto.createHash('sha256').update(data).digest('hex');
+    const dateStr = date.toISOString().split('T')[0];
+    // Se não houver FITID, incluímos o valor e data para evitar colisões
+    const fingerprint = fitid
+      ? `FITID|${accountId}|${fitid}`
+      : `RAW|${accountId}|${amount}|${dateStr}|${description.trim().toUpperCase()}`;
+
+    return crypto.createHash('sha256').update(fingerprint).digest('hex');
   }
 
   /**
-   * Cria nova transação com categorização automática
+   * Processa a importação de múltiplas transações de uma vez.
    */
-  async create(
+  async processImport(
     userId: string,
     accountId: string,
-    data: {
-      fitid?: string;
+    rawTransactions: Array<{
+      date: Date;
       descriptionRaw: string;
       amount: number;
-      date: Date;
-    },
-  ): Promise<Transaction> {
-    // Verificar se conta existe e pertence ao usuário
+      fitid?: string;
+      additionalInfo?: any;
+    }>,
+  ) {
+    // 1. Validar conta
     const account = await this.accountRepository.findOne({
       where: { id: accountId, userId },
     });
+    if (!account) throw new NotFoundException('Conta não encontrada');
 
-    if (!account) {
-      throw new NotFoundException('Account not found');
+    if (!rawTransactions.length) {
+      return {
+        totalProcessed: 0,
+        newlyImported: 0,
+        duplicatesSkipped: 0,
+      };
     }
 
-    // Gerar hash para deduplicação
-    const transactionHash = this.generateTransactionHash(
-      accountId,
-      data.amount,
-      data.date,
-      data.descriptionRaw,
+    // 2. filtrar duplicatas já existentes no banco
+    const hashes = rawTransactions.map(t =>
+      this.generateTransactionHash(accountId, t.amount, t.date, t.descriptionRaw, t.fitid)
     );
 
-    // Verificar duplicação
-    const existing = await this.transactionRepository.findOne({
-      where: { transactionHash },
+    const existingTransactions = await this.transactionRepository.find({
+      where: { transactionHash: In(hashes) },
+      select: ['transactionHash']
     });
 
-    if (existing) {
-      return existing;
+    const existingHashes = new Set(existingTransactions.map(t => t.transactionHash));
+
+    const newTransactions: Transaction[] = [];
+
+    // 3. Iterar sobre as transações que não são duplicadas
+    for (let i = 0; i < rawTransactions.length; i++) {
+      const raw = rawTransactions[i];
+      const hash = hashes[i];
+
+      if (existingHashes.has(hash)) continue;
+
+      // 4. Chamar o AI para categorizar
+      const aiResult = await this.aiService.categorizeTransaction(raw.descriptionRaw);
+
+      const transaction = this.transactionRepository.create({
+        userId: userId,
+        accountId: accountId,
+        transactionHash: hash,
+        fitid: raw.fitid,
+        descriptionRaw: raw.descriptionRaw,
+        descriptionClean: aiResult.descriptionClean,
+        amount: Number(raw.amount), 
+        date: raw.date,
+        categoryId: aiResult.categoryId,
+        categoryConfidence: aiResult.confidence,
+        needsReview: aiResult.confidence < 0.8,
+        additionalInfo: raw.additionalInfo || {},
+      });
+
+      newTransactions.push(transaction);
+
+      existingHashes.add(hash);
     }
 
-    // Categorizar com IA
-    const categorization = await this.aiService.categorizeTransaction(
-      data.descriptionRaw,
-      userId,
-    );
+    // 5. Salva em lote 
+    if (newTransactions.length > 0) {
+      await this.transactionRepository.save(newTransactions);
 
-    // Criar transação
-    const transaction = this.transactionRepository.create({
-      userId,
-      accountId,
-      fitid: data.fitid,
-      transactionHash,
-      descriptionRaw: data.descriptionRaw,
-      descriptionClean: categorization.descriptionClean,
-      amount: data.amount,
-      date: data.date,
-      categoryId: categorization.categoryId,
-      categoryConfidence: categorization.confidence,
-      needsReview: categorization.confidence < 0.8,
-    });
+      // 6. Tentar detectar transferências após o salvamento      
+      this.detectTransfers(userId).catch(err => console.error('Transfer detection failed', err));
+    }
 
-    return this.transactionRepository.save(transaction);
+    return {
+      totalProcessed: rawTransactions.length,
+      newlyImported: newTransactions.length,
+      duplicatesSkipped: rawTransactions.length - newTransactions.length
+    };
   }
 
-  /**
-   * Lista transações do usuário
-   */
-  async findAll(
+  async listByUser(
     userId: string,
     filters?: {
+      startDate?: string;
+      endDate?: string;
       accountId?: string;
       categoryId?: string;
-      startDate?: Date;
-      endDate?: Date;
     },
   ): Promise<Transaction[]> {
-    const query = this.transactionRepository
-      .createQueryBuilder('transaction')
-      .leftJoinAndSelect('transaction.account', 'account')
-      .leftJoinAndSelect('transaction.category', 'category')
-      .where('transaction.userId = :userId', { userId });
+    const where: any = { userId };
 
-    if (filters?.accountId) {
-      query.andWhere('transaction.accountId = :accountId', {
-        accountId: filters.accountId,
-      });
+    if (filters?.accountId) where.accountId = filters.accountId;
+    if (filters?.categoryId) where.categoryId = filters.categoryId;
+
+    if (filters?.startDate && filters?.endDate) {
+      where.date = Between(new Date(filters.startDate), new Date(filters.endDate));
+    } else if (filters?.startDate) {
+      where.date = MoreThanOrEqual(new Date(filters.startDate));
+    } else if (filters?.endDate) {
+      where.date = LessThanOrEqual(new Date(filters.endDate));
     }
 
-    if (filters?.categoryId) {
-      query.andWhere('transaction.categoryId = :categoryId', {
-        categoryId: filters.categoryId,
-      });
-    }
-
-    if (filters?.startDate) {
-      query.andWhere('transaction.date >= :startDate', {
-        startDate: filters.startDate,
-      });
-    }
-
-    if (filters?.endDate) {
-      query.andWhere('transaction.date <= :endDate', {
-        endDate: filters.endDate,
-      });
-    }
-
-    return query.orderBy('transaction.date', 'DESC').getMany();
+    return this.transactionRepository.find({
+      where,
+      relations: ['category', 'account'],
+      order: { date: 'DESC', createdAt: 'DESC' },
+    });
   }
 
   /**
-   * Detectar transferências entre contas do mesmo usuário
+   * Busca pares de transações que representam movimentação entre contas próprias.
    */
   async detectTransfers(userId: string): Promise<void> {
-    const transactions = await this.findAll(userId);
-
-    // Agrupar por data e valor absoluto
-    const grouped = new Map<string, Transaction[]>();
-
-    transactions.forEach((t) => {
-      const key = `${t.date.toISOString().split('T')[0]}|${Math.abs(t.amount)}`;
-      if (!grouped.has(key)) {
-        grouped.set(key, []);
-      }
-      grouped.get(key).push(t);
+    const recentExpenses = await this.transactionRepository.find({
+      where: { userId, amount: LessThan(0), transferId: IsNull() },
+      relations: ['account']
     });
 
-    // Detectar pares de transferência (débito + crédito mesmo valor/data)
-    for (const [, group] of grouped) {
-      if (group.length < 2) continue;
-
-      const debits = group.filter((t) => t.amount < 0);
-      const credits = group.filter((t) => t.amount > 0);
-
-      for (const debit of debits) {
-        for (const credit of credits) {
-          if (Math.abs(debit.amount) === credit.amount) {
-            // Marcar como transferência
-            debit.transferId = credit.id;
-            credit.transferId = debit.id;
-            await this.transactionRepository.save([debit, credit]);
-          }
+    for (const expense of recentExpenses) {
+      const match = await this.transactionRepository.findOne({
+        where: {
+          userId,
+          amount: Math.abs(Number(expense.amount)),
+          accountId: Not(expense.accountId),
+          transferId: IsNull(),
+          date: Between(expense.date, addDays(expense.date, 2))
         }
+      });
+
+      if (match) {
+        expense.transferId = match.id;
+        match.transferId = expense.id;
+
+        await this.transactionRepository.save([expense, match]);
       }
     }
   }

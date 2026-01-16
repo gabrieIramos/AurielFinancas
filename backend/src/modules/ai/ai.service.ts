@@ -26,200 +26,113 @@ export class AiService {
     private categoryRepository: Repository<Category>,
   ) {
     const apiKey = this.configService.get<string>('GROQ_API_KEY');
-    if (!apiKey) {
-      this.logger.warn('GROQ_API_KEY not configured. AI features disabled.');
-      this.isConfigured = false;
-      return;
-    }
-    
-    this.groq = new Groq({ apiKey });
-    this.isConfigured = true;
-  }
-
-  /**
-   * Limpa e normaliza a descrição da transação
-   */
-  async cleanDescription(rawDescription: string): Promise<string> {
-    if (!this.isConfigured) {
-      return rawDescription.trim();
-    }
-
-    try {
-      const prompt = `Você é um assistente que limpa descrições de transações bancárias.
-      
-Regras:
-- Remover códigos, datas, números de estabelecimento
-- Manter apenas o nome do estabelecimento ou categoria
-- Responder SOMENTE com o texto limpo, sem explicações
-
-Descrição: "${rawDescription}"
-Texto limpo:`;
-
-      const message = await this.groq.chat.completions.create({
-        messages: [{ role: 'user', content: prompt }],
-        model: 'mixtral-8x7b-32768',
-        max_tokens: 100,
-      });
-      
-      const cleanText = (message.choices[0]?.message?.content || rawDescription).trim();
-      this.logger.debug(`Cleaned: "${rawDescription}" -> "${cleanText}"`);
-      return cleanText;
-    } catch (error) {
-      this.logger.error('Error cleaning description:', error.message);
-      return rawDescription.trim();
+    this.isConfigured = !!apiKey;
+    if (this.isConfigured) {
+      this.groq = new Groq({ apiKey });
     }
   }
 
   /**
-   * Categoriza uma transação usando cache primeiro, depois IA
+   * Limpeza via Regex para aumentar taxa de acerto do cache sem gastar IA
    */
-  async categorizeTransaction(
-    descriptionRaw: string,
-    userId?: string,
-  ): Promise<CategorizationResult> {
-    // 1. Limpar descrição
-    const descriptionClean = await this.cleanDescription(descriptionRaw);
+  private preClean(description: string): string {
+    return description
+      .toUpperCase()
+      .replace(/\d{2}\/\d{2}/g, '') // Datas
+      .replace(/\*/g, ' ')          // Asteriscos
+      .replace(/-/g, ' ')           // Hífens
+      .replace(/\d{10,}/g, '')      // Números longos
+      .replace(/\s+/g, ' ')         // Espaços duplos
+      .trim();
+  }
 
-    // 2. Verificar cache
+  async categorizeTransaction(descriptionRaw: string): Promise<CategorizationResult> {
+    const fastClean = this.preClean(descriptionRaw);
+
+    //Tentar Cache primeiro
     const cached = await this.cacheRepository.findOne({
-      where: { descriptionClean },
+      where: { descriptionClean: fastClean },
       relations: ['category'],
     });
 
     if (cached) {
-      // Incrementar contador de uso
-      cached.occurrenceCount += 1;
-      await this.cacheRepository.save(cached);
-
-      this.logger.debug(`Cache hit for: ${descriptionClean}`);
+      this.logger.debug(`Cache Hit: ${fastClean}`);
+      await this.cacheRepository.update(cached.id, { 
+        occurrenceCount: cached.occurrenceCount + 1 
+      });
       return {
         categoryId: cached.categoryId,
-        descriptionClean,
-        confidence: cached.confidenceScore || 0.95,
+        descriptionClean: fastClean,
+        confidence: Number(cached.confidenceScore),
       };
     }
 
-    // 3. Usar IA para categorizar
-    return this.categorizeWithAI(descriptionClean);
+    // 2. Se falhar, chamar IA
+    return this.processWithAI(descriptionRaw, fastClean);
   }
 
-  /**
-   * Categoriza usando IA e salva no cache
-   */
-  private async categorizeWithAI(
-    descriptionClean: string,
-  ): Promise<CategorizationResult> {
-    if (!this.isConfigured) {
-      throw new Error('AI not configured');
-    }
+  private async processWithAI(raw: string, fastClean: string): Promise<CategorizationResult> {
+    if (!this.isConfigured) return this.fallback(fastClean);
 
     const categories = await this.categoryRepository.find();
-    const categoryList = categories.map((c) => c.name).join(', ');
+    const categoryNames = categories.map(c => c.name);
+
+    const prompt = `Analise a transação: "${raw}"
+    Categorias aceitas: [${categoryNames.join(', ')}]
+    
+    Responda EXATAMENTE no formato JSON:
+    {
+      "merchant": "Nome limpo do estabelecimento",
+      "category": "Nome da categoria idêntico à lista",
+      "confidence": 0.9
+    }`;
 
     try {
-      const prompt = `Você é um especialista em categorização de despesas pessoais.
-
-Categorias disponíveis: ${categoryList}
-
-Regras:
-- Analise a descrição da transação
-- Escolha a categoria mais apropriada da lista
-- Responda APENAS com o nome exato da categoria
-- Se não tiver certeza, escolha "Outras"
-
-Descrição: "${descriptionClean}"
-Categoria:`;
-
-      const message = await this.groq.chat.completions.create({
-        messages: [{ role: 'user', content: prompt }],
-        model: 'mixtral-8x7b-32768',
-        max_tokens: 50,
+      const completion = await this.groq.chat.completions.create({
+        messages: [
+          { role: 'system', content: 'Você é um classificador de finanças. Responda apenas JSON.' },
+          { role: 'user', content: prompt }
+        ],
+        model: 'llama3-8b-8192', // Mais rápido e barato para JSON simples
+        response_format: { type: 'json_object' },
+        temperature: 0.1, // Menos criatividade, mais precisão
       });
+
+      const res = JSON.parse(completion.choices[0].message.content);
       
-      const categoryName = (message.choices[0]?.message?.content || '').trim();
+      // Valida se a categoria retornada existe no seu banco
+      let category = categories.find(c => c.name.toLowerCase() === res.category.toLowerCase());
+      if (!category) category = categories.find(c => c.name === 'Outras');
 
-      // Encontrar categoria
-      let category = categories.find(
-        (c) => c.name.toLowerCase() === categoryName.toLowerCase(),
-      );
+      const finalDescription = res.merchant.toUpperCase() || fastClean;
 
-      if (!category) {
-        category = categories.find((c) => c.name === 'Outras');
-      }
-
-      if (!category) {
-        throw new Error('No valid category found');
-      }
-
-      // Salvar no cache
-      const cache = this.cacheRepository.create({
-        descriptionClean,
+      // 3. Salvar no Cache para futuras transações idênticas
+      await this.cacheRepository.upsert({
+        descriptionClean: fastClean, // Chave do cache é a versão pré-limpa
         categoryId: category.id,
-        confidenceScore: 0.85,
+        confidenceScore: res.confidence || 0.8,
         occurrenceCount: 1,
         isGlobal: false,
-      });
-      await this.cacheRepository.save(cache);
-
-      this.logger.debug(`AI categorized: ${descriptionClean} -> ${categoryName}`);
+      }, ['descriptionClean']);
 
       return {
         categoryId: category.id,
-        descriptionClean,
-        confidence: 0.85,
+        descriptionClean: finalDescription,
+        confidence: res.confidence || 0.8,
       };
+
     } catch (error) {
-      this.logger.error('Error in AI categorization:', error.message);
-      
-      // Fallback: categoria "Outras"
-      const fallbackCategory = categories.find((c) => c.name === 'Outras');
-      return {
-        categoryId: fallbackCategory?.id || categories[0].id,
-        descriptionClean,
-        confidence: 0.3,
-      };
+      this.logger.error(`AI Error: ${error.message}`);
+      return this.fallback(fastClean);
     }
   }
 
-  /**
-   * Gera relatório financeiro mensal usando IA
-   */
-  async generateMonthlyReport(data: {
-    totalIncome: number;
-    totalExpenses: number;
-    topCategories: Array<{ category: string; amount: number }>;
-    netWorth: number;
-  }): Promise<string> {
-    if (!this.isConfigured) {
-      return 'AI not configured for reports.';
-    }
-
-    try {
-      const prompt = `Você é um analista financeiro pessoal.
-
-Dados do mês:
-- Receitas: R$ ${data.totalIncome.toFixed(2)}
-- Despesas: R$ ${data.totalExpenses.toFixed(2)}
-- Patrimônio Líquido: R$ ${data.netWorth.toFixed(2)}
-- Principais gastos: ${data.topCategories.map((c) => `${c.category} (R$ ${c.amount.toFixed(2)})`).join(', ')}
-
-Gere um relatório breve (3-4 parágrafos) com:
-1. Resumo do mês
-2. Insights sobre os gastos
-3. Sugestões de melhoria
-
-Use tom profissional mas acessível.`;
-
-      const message = await this.groq.chat.completions.create({
-        messages: [{ role: 'user', content: prompt }],
-        model: 'mixtral-8x7b-32768',
-        max_tokens: 500,
-      });
-      
-      return message.choices[0]?.message?.content || 'Erro ao gerar relatório.';
-    } catch (error) {
-      this.logger.error('Error generating report:', error.message);
-      return 'Erro ao gerar relatório.';
-    }
+  private async fallback(clean: string): Promise<CategorizationResult> {
+    const other = await this.categoryRepository.findOne({ where: { name: 'Outras' } });
+    return {
+      categoryId: other?.id,
+      descriptionClean: clean,
+      confidence: 0.1,
+    };
   }
 }

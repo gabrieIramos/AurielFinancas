@@ -1,21 +1,15 @@
-import { User, Mail, Phone, Bell, Shield, HelpCircle, LogOut, ChevronRight, FileText, Moon, Sun } from "lucide-react";
+import { User, Mail, Phone, Bell, Shield, HelpCircle, LogOut, ChevronRight, Upload, FileText, Moon, Sun } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
+import { useAuth } from "../contexts/AuthContext";
 import { Switch } from "./ui/switch";
 
-// Mock user data
-const userData = {
-  nome: "Rafael Silva",
-  email: "rafael.silva@email.com",
-  telefone: "(11) 98765-4321",
-  membro: "Premium",
-  dataCadastro: "Janeiro 2024",
-};
-
+// Mock user data will be replaced by auth context
 const menuItems = [
   {
     categoria: "Conta",
     items: [
       { icon: User, label: "Informações Pessoais", badge: null },
+      { icon: Upload, label: "Importar OFX", badge: "Novo" },
       { icon: FileText, label: "Exportar Dados", badge: null },
     ],
   },
@@ -36,6 +30,15 @@ const menuItems = [
 
 export default function PerfilScreen() {
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
+
+  const userData = {
+    nome: user?.name || "Rafael Silva",
+    email: user?.email || "rafael.silva@email.com",
+    telefone: "(11) 98765-4321",
+    membro: "Premium",
+    dataCadastro: "Janeiro 2024",
+  };
 
   return (
     <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} pb-4`}>
@@ -47,7 +50,7 @@ export default function PerfilScreen() {
         <div className={`${theme === "dark" ? "bg-gradient-to-br from-zinc-800 to-zinc-900" : "bg-gradient-to-br from-zinc-100 to-zinc-200"} rounded-2xl p-6 mb-6`}>
           <div className="flex items-center gap-4 mb-4">
             <div className="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center">
-              <span className="text-2xl text-white">RS</span>
+              <span className="text-2xl text-white">{userData.nome.split(' ').map(n => n[0]).join('').substring(0, 2)}</span>
             </div>
             <div className="flex-1">
               <h2 className="text-xl mb-1">{userData.nome}</h2>
@@ -152,12 +155,33 @@ export default function PerfilScreen() {
           ))}
         </div>
 
+        {/* Import OFX Section */}
+        <div className="mt-6 bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl p-6">
+          <div className="flex items-start gap-4">
+            <div className="p-3 bg-white/20 rounded-full">
+              <Upload className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-lg mb-2 text-white">Importar Arquivos OFX</h3>
+              <p className="text-emerald-100 text-sm mb-4">
+                Faça upload de extratos bancários e faturas de cartão de crédito para sincronizar automaticamente suas transações.
+              </p>
+              <button className="px-4 py-2 bg-white text-emerald-700 rounded-lg hover:bg-emerald-50 transition-colors">
+                Selecionar Arquivo
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* Logout Button */}
-        <button className={`w-full mt-6 ${
-          theme === "dark" ? "bg-red-900/30" : "bg-red-50"
-        } text-red-400 p-4 rounded-xl flex items-center justify-center gap-2 ${
-          theme === "dark" ? "hover:bg-red-900/50" : "hover:bg-red-100"
-        } transition-colors`}>
+        <button
+          onClick={logout}
+          className={`w-full mt-6 ${
+            theme === "dark" ? "bg-red-900/30" : "bg-red-50"
+          } text-red-400 p-4 rounded-xl flex items-center justify-center gap-2 ${
+            theme === "dark" ? "hover:bg-red-900/50" : "hover:bg-red-100"
+          } transition-colors`}
+        >
           <LogOut className="w-5 h-5" />
           <span>Sair da Conta</span>
         </button>

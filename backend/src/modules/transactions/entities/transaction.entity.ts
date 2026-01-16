@@ -35,7 +35,15 @@ export class Transaction {
   @Column({ name: 'description_clean', type: 'text', nullable: true })
   descriptionClean: string;
 
-  @Column({ type: 'decimal', precision: 15, scale: 2 })
+  @Column({
+    type: 'decimal',
+    precision: 15,
+    scale: 2,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string | null) => (value === null ? null : Number(value)),
+    },
+  })
   amount: number;
 
   @Column({ type: 'date' })
@@ -50,6 +58,10 @@ export class Transaction {
     precision: 3,
     scale: 2,
     nullable: true,
+    transformer: {
+      to: (value: number | null) => value,
+      from: (value: string | null) => (value === null ? null : Number(value)),
+    },
   })
   categoryConfidence: number;
 
@@ -81,4 +93,7 @@ export class Transaction {
   @ManyToOne(() => Transaction, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'transfer_id' })
   transfer: Transaction;
+
+  @Column({ name: 'additional_info', type: 'jsonb', nullable: true })
+  additionalInfo: any; 
 }

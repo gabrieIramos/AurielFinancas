@@ -108,13 +108,18 @@ CREATE INDEX idx_trans_recon_search ON transactions (amount, date, user_id);
 -- 3. CACHE DE INTELIGÊNCIA
 CREATE TABLE ai_category_cache (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    description_clean TEXT UNIQUE NOT NULL,
-    category_id UUID REFERENCES categories(id) ON DELETE CASCADE,
+    description_clean TEXT NOT NULL,
+    category_id UUID NOT NULL
+        REFERENCES categories(id) ON DELETE CASCADE,
+    user_id UUID NULL
+        REFERENCES users(id) ON DELETE CASCADE,
+    source TEXT NOT NULL CHECK (source IN ('user', 'ia', 'bank')),
     confidence_score DECIMAL(3, 2),
     occurrence_count INTEGER DEFAULT 1,
     is_global BOOLEAN DEFAULT FALSE,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
 
 -- 4. INVESTIMENTOS E PATRIMÔNIO
 CREATE TABLE investments (

@@ -1,17 +1,25 @@
 import { useState } from "react";
 import { Home, FileText, PieChart, Brain, User } from "lucide-react";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import HomeScreen from "./components/HomeScreen";
 import ExtratoScreen from "./components/ExtratoScreen";
 import CarteiraScreen from "./components/CarteiraScreen";
 import IAScreen from "./components/IAScreen";
 import PerfilScreen from "./components/PerfilScreen";
+import OnboardingScreen from "./components/OnboardingScreen";
+import LoginScreen from "./components/LoginScreen";
+import SignupScreen from "./components/SignupScreen";
+import { Toaster } from "./components/ui/sonner";
 
 type Tab = "home" | "extrato" | "carteira" | "ia" | "perfil";
+type AuthView = "onboarding" | "login" | "signup";
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
+  const [authView, setAuthView] = useState<AuthView>("onboarding");
   const { theme } = useTheme();
+  const { isAuthenticated, hasSeenOnboarding, login, signup, completeOnboarding } = useAuth();
 
   const tabs = [
     { id: "home" as Tab, icon: Home, label: "Home" },
@@ -38,6 +46,58 @@ function AppContent() {
     }
   };
 
+  // Show onboarding if not seen
+  if (!hasSeenOnboarding) {
+    return (
+      <OnboardingScreen
+        onComplete={completeOnboarding}
+        onSignup={() => {
+          completeOnboarding();
+          setAuthView("signup");
+        }}
+        onLogin={() => {
+          completeOnboarding();
+          setAuthView("login");
+        }}
+      />
+    );
+  }
+
+  // Show auth screens if not authenticated
+  if (!isAuthenticated) {
+    if (authView === "signup") {
+      return (
+        <SignupScreen
+          onSignup={(name, email, password) => {
+            signup(name, email, password);
+          }}
+          onBackToLogin={() => setAuthView("login")}
+        />
+      );
+    }
+
+    if (authView === "login") {
+      return (
+        <LoginScreen
+          onLogin={(email, password) => {
+            login(email, password);
+          }}
+          onBackToOnboarding={() => setAuthView("onboarding")}
+          onSignup={() => setAuthView("signup")}
+        />
+      );
+    }
+
+    return (
+      <OnboardingScreen
+        onComplete={completeOnboarding}
+        onSignup={() => setAuthView("signup")}
+        onLogin={() => setAuthView("login")}
+      />
+    );
+  }
+
+  // Show main app if authenticated
   return (
     <div className={theme === "dark" ? "dark" : ""}>
       <div className={`min-h-screen ${theme === "dark" ? "bg-black" : "bg-white"}`}>
@@ -81,7 +141,10 @@ function AppContent() {
 export default function App() {
   return (
     <ThemeProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+        <Toaster richColors position="top-center" />
+      </AuthProvider>
     </ThemeProvider>
   );
 }

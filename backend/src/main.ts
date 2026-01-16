@@ -20,7 +20,7 @@ async function bootstrap() {
 
   // CORS
   app.enableCors({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: process.env.NODE_ENV === 'development' ? 'http://localhost:5172' : process.env.CORS_ORIGIN,
     credentials: true,
   });
 
