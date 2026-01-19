@@ -127,13 +127,13 @@ export default function HomeScreen() {
           {showValues ? (
             <ResponsiveContainer width="100%" height={200}>
               <LineChart data={patrimonioData}>
-                <XAxis 
-                  dataKey="month" 
-                  stroke={theme === "dark" ? "#71717a" : "#a1a1aa"} 
+                <XAxis
+                  dataKey="month"
+                  stroke={theme === "dark" ? "#71717a" : "#a1a1aa"}
                   tick={{ fill: theme === "dark" ? "#71717a" : "#a1a1aa", fontSize: 12 }}
                 />
-                <YAxis 
-                  stroke={theme === "dark" ? "#71717a" : "#a1a1aa"} 
+                <YAxis
+                  stroke={theme === "dark" ? "#71717a" : "#a1a1aa"}
                   tick={{ fill: theme === "dark" ? "#71717a" : "#a1a1aa", fontSize: 12 }}
                   tickFormatter={(value) => `${value / 1000}k`}
                 />
@@ -146,10 +146,10 @@ export default function HomeScreen() {
                   }}
                   formatter={(value: number) => formatCurrency(value)}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="value" 
-                  stroke="#10b981" 
+                <Line
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#10b981"
                   strokeWidth={2}
                   dot={{ fill: "#10b981", r: 4 }}
                 />
@@ -174,16 +174,16 @@ export default function HomeScreen() {
             <>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={despesasPorCategoria} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
-                  <XAxis 
-                    dataKey="categoria" 
-                    stroke={theme === "dark" ? "#71717a" : "#a1a1aa"} 
+                  <XAxis
+                    dataKey="categoria"
+                    stroke={theme === "dark" ? "#71717a" : "#a1a1aa"}
                     tick={{ fill: theme === "dark" ? "#71717a" : "#a1a1aa", fontSize: 10 }}
                     angle={-45}
                     textAnchor="end"
                     height={70}
                   />
-                  <YAxis 
-                    stroke={theme === "dark" ? "#71717a" : "#a1a1aa"} 
+                  <YAxis
+                    stroke={theme === "dark" ? "#71717a" : "#a1a1aa"}
                     tick={{ fill: theme === "dark" ? "#71717a" : "#a1a1aa", fontSize: 11 }}
                     tickFormatter={(value) => `${(value / 1000).toFixed(1)}k`}
                   />
@@ -196,9 +196,9 @@ export default function HomeScreen() {
                     }}
                     formatter={(value: number) => formatCurrency(value)}
                   />
-                  <Bar 
-                    dataKey="valor" 
-                    fill="#10b981" 
+                  <Bar
+                    dataKey="valor"
+                    fill="#10b981"
                     radius={[8, 8, 0, 0]}
                   >
                     {despesasPorCategoria.map((entry, index) => (
@@ -269,7 +269,10 @@ export default function HomeScreen() {
                       borderRadius: "8px",
                       color: theme === "dark" ? "#ffffff" : "#000000",
                     }}
-                    formatter={(value: number) => formatCurrency(value)}
+                    formatter={(value: number) => formatCurrency(value)}                   
+                    itemStyle={{
+                      color: theme === "dark" ? "#e5e7eb" : "#111827",
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>

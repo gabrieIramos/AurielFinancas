@@ -8,9 +8,8 @@ const menuItems = [
   {
     categoria: "Conta",
     items: [
-      { icon: User, label: "Informações Pessoais", badge: null },
-      { icon: Upload, label: "Importar OFX", badge: "Novo" },
-      { icon: FileText, label: "Exportar Dados", badge: null },
+      { icon: User, label: "Informações Pessoais", badge: null },      
+      { icon: FileText, label: "Exportar Dados", badge: 'Novo' },
     ],
   },
   {
@@ -153,25 +152,7 @@ export default function PerfilScreen() {
               </div>
             </div>
           ))}
-        </div>
-
-        {/* Import OFX Section */}
-        <div className="mt-6 bg-gradient-to-br from-emerald-600 to-emerald-800 rounded-2xl p-6">
-          <div className="flex items-start gap-4">
-            <div className="p-3 bg-white/20 rounded-full">
-              <Upload className="w-6 h-6 text-white" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-lg mb-2 text-white">Importar Arquivos OFX</h3>
-              <p className="text-emerald-100 text-sm mb-4">
-                Faça upload de extratos bancários e faturas de cartão de crédito para sincronizar automaticamente suas transações.
-              </p>
-              <button className="px-4 py-2 bg-white text-emerald-700 rounded-lg hover:bg-emerald-50 transition-colors">
-                Selecionar Arquivo
-              </button>
-            </div>
-          </div>
-        </div>
+        </div>        
 
         {/* Logout Button */}
         <button
@@ -189,7 +170,7 @@ export default function PerfilScreen() {
         {/* Version Info */}
         <div className="mt-6 text-center">
           <p className={`${theme === "dark" ? "text-zinc-500" : "text-zinc-400"} text-xs`}>Versão 1.0.0</p>
-          <p className={`${theme === "dark" ? "text-zinc-600" : "text-zinc-500"} text-xs mt-1`}>© 2024 FinanceApp. Todos os direitos reservados.</p>
+          <p className={`${theme === "dark" ? "text-zinc-600" : "text-zinc-500"} text-xs mt-1`}>© 2024 Auriel Financas. Todos os direitos reservados.</p>
         </div>
       </div>
     </div>

@@ -377,7 +377,7 @@ export default function ExtratoScreen() {
                 </SelectTrigger>
                 <SelectContent className={theme === "dark" ? "bg-zinc-800 border-zinc-700" : "bg-white"}>
                   {bancos.map((banco) => (
-                    <SelectItem key={banco.id} value={banco.id}>
+                    <SelectItem key={banco.id} value={banco.id} className={theme === "dark" ? "text-zinc-100" : "text-zinc-900"}>
                       {banco.nome}
                     </SelectItem>
                   ))}
