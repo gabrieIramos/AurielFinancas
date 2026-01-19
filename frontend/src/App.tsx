@@ -68,8 +68,10 @@ function AppContent() {
     if (authView === "signup") {
       return (
         <SignupScreen
-          onSignup={(name, email, password) => {
-            signup(name, email, password);
+          onSignupSuccess={() => {
+            // O signup já é feito no componente através do contexto
+            // Aqui só precisamos que a navegação aconteça automaticamente
+            // pois o isAuthenticated já será true
           }}
           onBackToLogin={() => setAuthView("login")}
         />
@@ -79,8 +81,10 @@ function AppContent() {
     if (authView === "login") {
       return (
         <LoginScreen
-          onLogin={(email, password) => {
-            login(email, password);
+          onLoginSuccess={() => {
+            // O login já é feito no componente através do contexto
+            // Aqui só precisamos que a navegação aconteça automaticamente
+            // pois o isAuthenticated já será true
           }}
           onBackToOnboarding={() => setAuthView("onboarding")}
           onSignup={() => setAuthView("signup")}

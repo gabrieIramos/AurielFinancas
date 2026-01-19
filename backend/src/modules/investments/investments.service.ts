@@ -1,46 +1,188 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Investment } from './entities/investment.entity';
+import { Ativo } from './entities/ativo.entity';
 
 @Injectable()
 export class InvestmentsService {
   constructor(
     @InjectRepository(Investment)
     private investmentRepository: Repository<Investment>,
+    @InjectRepository(Ativo)
+    private ativoRepository: Repository<Ativo>,
   ) {}
+
+  // ========== ATIVOS (tabela fixa) ==========
+  
+  async findAllAtivos(): Promise<Ativo[]> {
+    return this.ativoRepository.find({
+      order: { ticker: 'ASC' },
+    });
+  }
+
+  async findAtivosByTipo(tipo: string): Promise<Ativo[]> {
+    return this.ativoRepository.find({
+      where: { tipo },
+      order: { ticker: 'ASC' },
+    });
+  }
+
+  async findAtivoById(id: number): Promise<Ativo> {
+    const ativo = await this.ativoRepository.findOne({
+      where: { id },
+    });
+    if (!ativo) {
+      throw new NotFoundException('Ativo não encontrado');
+    }
+    return ativo;
+  }
+
+  async updateAtivoPrice(id: number, precoAtual: number): Promise<Ativo> {
+    const ativo = await this.findAtivoById(id);
+    ativo.precoAtual = precoAtual;
+    return this.ativoRepository.save(ativo);
+  }
+
+  // ========== INVESTMENTS (transações do usuário) ==========
 
   async findAll(userId: string): Promise<Investment[]> {
     return this.investmentRepository.find({
       where: { userId },
-      order: { ticker: 'ASC' },
+      relations: ['ativo'],
+      order: { purchaseDate: 'DESC' },
     });
+  }
+
+  async findOne(id: string, userId: string): Promise<Investment> {
+    const investment = await this.investmentRepository.findOne({
+      where: { id, userId },
+      relations: ['ativo'],
+    });
+    if (!investment) {
+      throw new NotFoundException('Investimento não encontrado');
+    }
+    return investment;
   }
 
   async create(
     userId: string,
     data: {
-      ticker: string;
-      type: string;
+      ativoId: number;
       quantity: number;
-      averagePrice: number;
+      purchasePrice: number;
+      purchaseDate: string;
     },
   ): Promise<Investment> {
+    // Verificar se o ativo existe
+    await this.findAtivoById(data.ativoId);
+
     const investment = this.investmentRepository.create({
       userId,
-      ...data,
+      ativoId: data.ativoId,
+      quantity: data.quantity,
+      purchasePrice: data.purchasePrice,
+      purchaseDate: new Date(data.purchaseDate),
     });
-    return this.investmentRepository.save(investment);
+    
+    const saved = await this.investmentRepository.save(investment);
+    return this.findOne(saved.id, userId);
   }
 
-  async updatePrice(id: string, userId: string, price: number): Promise<Investment> {
-    const investment = await this.investmentRepository.findOne({
-      where: { id, userId },
-    });
-    if (investment) {
-      investment.currentPrice = price;
-      return this.investmentRepository.save(investment);
+  async update(
+    id: string,
+    userId: string,
+    data: Partial<{
+      ativoId: number;
+      quantity: number;
+      purchasePrice: number;
+      purchaseDate: string;
+    }>,
+  ): Promise<Investment> {
+    const investment = await this.findOne(id, userId);
+    
+    if (data.ativoId) {
+      await this.findAtivoById(data.ativoId);
+      investment.ativoId = data.ativoId;
     }
-    return null;
+    if (data.quantity !== undefined) investment.quantity = data.quantity;
+    if (data.purchasePrice !== undefined) investment.purchasePrice = data.purchasePrice;
+    if (data.purchaseDate) investment.purchaseDate = new Date(data.purchaseDate);
+
+    await this.investmentRepository.save(investment);
+    return this.findOne(id, userId);
+  }
+
+  async delete(id: string, userId: string): Promise<void> {
+    const investment = await this.findOne(id, userId);
+    await this.investmentRepository.remove(investment);
+  }
+
+  // ========== CARTEIRA CONSOLIDADA ==========
+
+  async getPortfolio(userId: string) {
+    const investments = await this.findAll(userId);
+    
+    // Agrupar por ativo
+    const portfolioMap = new Map<number, {
+      ativo: Ativo;
+      totalQuantity: number;
+      totalCost: number;
+      transactions: Investment[];
+    }>();
+
+    for (const inv of investments) {
+      const existing = portfolioMap.get(inv.ativoId);
+      const quantity = Number(inv.quantity);
+      const cost = quantity * Number(inv.purchasePrice);
+
+      if (existing) {
+        existing.totalQuantity += quantity;
+        existing.totalCost += cost;
+        existing.transactions.push(inv);
+      } else {
+        portfolioMap.set(inv.ativoId, {
+          ativo: inv.ativo,
+          totalQuantity: quantity,
+          totalCost: cost,
+          transactions: [inv],
+        });
+      }
+    }
+
+    // Converter para array com cálculos
+    const portfolio = Array.from(portfolioMap.values()).map(item => {
+      const currentValue = item.totalQuantity * Number(item.ativo.precoAtual);
+      const profitLoss = currentValue - item.totalCost;
+      const averagePrice = item.totalQuantity > 0 ? item.totalCost / item.totalQuantity : 0;
+
+      return {
+        ativo: item.ativo,
+        totalQuantity: item.totalQuantity,
+        averagePrice,
+        currentPrice: Number(item.ativo.precoAtual),
+        totalCost: item.totalCost,
+        currentValue,
+        profitLoss,
+        profitLossPercentage: item.totalCost > 0 ? (profitLoss / item.totalCost) * 100 : 0,
+        transactionCount: item.transactions.length,
+      };
+    });
+
+    // Totais
+    const totalValue = portfolio.reduce((acc, p) => acc + p.currentValue, 0);
+    const totalCost = portfolio.reduce((acc, p) => acc + p.totalCost, 0);
+    const totalProfitLoss = totalValue - totalCost;
+
+    return {
+      items: portfolio,
+      summary: {
+        totalValue,
+        totalCost,
+        profitLoss: totalProfitLoss,
+        profitLossPercentage: totalCost > 0 ? (totalProfitLoss / totalCost) * 100 : 0,
+        assetCount: portfolio.length,
+      },
+    };
   }
 }

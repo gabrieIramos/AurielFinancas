@@ -1,24 +1,29 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
+import { useAuth } from "../contexts/AuthContext";
 
 type SignupScreenProps = {
-  onSignup: (name: string, email: string, password: string) => void;
+  onSignupSuccess: () => void;
   onBackToLogin: () => void;
 };
 
-export default function SignupScreen({ onSignup, onBackToLogin }: SignupScreenProps) {
+export default function SignupScreen({ onSignupSuccess, onBackToLogin }: SignupScreenProps) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const { theme } = useTheme();
+  const { signup, isLoading, error } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (name && email && password) {
-      onSignup(name, email, password);
+      const success = await signup(name, email, password);
+      if (success) {
+        onSignupSuccess();
+      }
     }
   };
 
@@ -137,14 +142,35 @@ export default function SignupScreen({ onSignup, onBackToLogin }: SignupScreenPr
                 </div>
               </div>
 
+              {/* Error Message */}
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="p-4 rounded-xl bg-red-500/10 border border-red-500/20"
+                >
+                  <p className="text-red-500 text-sm text-center">{error}</p>
+                </motion.div>
+              )}
+
               {/* Submit Button */}
               <motion.button
                 type="submit"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="w-full bg-emerald-600 text-white py-4 rounded-2xl text-lg mt-8 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20"
+                disabled={isLoading}
+                whileHover={{ scale: isLoading ? 1 : 1.02 }}
+                whileTap={{ scale: isLoading ? 1 : 0.98 }}
+                className={`w-full bg-emerald-600 text-white py-4 rounded-2xl text-lg mt-8 hover:bg-emerald-700 transition-colors shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 ${
+                  isLoading ? "opacity-70 cursor-not-allowed" : ""
+                }`}
               >
-                Criar minha conta
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Criando conta...
+                  </>
+                ) : (
+                  "Criar minha conta"
+                )}
               </motion.button>
             </form>
 

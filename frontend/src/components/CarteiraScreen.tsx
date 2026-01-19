@@ -1,109 +1,112 @@
-import { useState } from "react";
-import { Plus, TrendingUp, TrendingDown } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, TrendingUp, TrendingDown, Trash2, Loader2, Search, X, Calendar, Calendar1, CalendarClock, CalendarCheck2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
 import { useTheme } from "../contexts/ThemeContext";
-
-// Mock Data - Ativos
-const ativosIniciais = [
-  {
-    id: "1",
-    ticker: "ITUB4",
-    nome: "Itaú Unibanco",
-    tipo: "Ação",
-    quantidade: 200,
-    precoMedio: 28.50,
-    precoAtual: 32.10,
-    setor: "Financeiro",
-  },
-  {
-    id: "2",
-    ticker: "PETR4",
-    nome: "Petrobras",
-    tipo: "Ação",
-    quantidade: 150,
-    precoMedio: 35.20,
-    precoAtual: 38.75,
-    setor: "Energia",
-  },
-  {
-    id: "3",
-    ticker: "VALE3",
-    nome: "Vale",
-    tipo: "Ação",
-    quantidade: 100,
-    precoMedio: 68.90,
-    precoAtual: 65.40,
-    setor: "Mineração",
-  },
-  {
-    id: "4",
-    ticker: "HGLG11",
-    nome: "CSHG Logística",
-    tipo: "FII",
-    quantidade: 80,
-    precoMedio: 165.00,
-    precoAtual: 172.50,
-    setor: "Logística",
-  },
-  {
-    id: "5",
-    ticker: "MXRF11",
-    nome: "Maxi Renda",
-    tipo: "FII",
-    quantidade: 120,
-    precoMedio: 10.20,
-    precoAtual: 10.85,
-    setor: "Tijolo",
-  },
-  {
-    id: "6",
-    ticker: "BBDC4",
-    nome: "Bradesco",
-    tipo: "Ação",
-    quantidade: 180,
-    precoMedio: 14.80,
-    precoAtual: 13.90,
-    setor: "Financeiro",
-  },
-];
-
-type Ativo = typeof ativosIniciais[0];
+import {
+  investmentsService,
+  Ativo,
+  PortfolioItem,
+  PortfolioSummary
+} from "../services/investments.service";
 
 export default function CarteiraScreen() {
-  const [ativos, setAtivos] = useState<Ativo[]>(ativosIniciais);
+  const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
+  const [summary, setSummary] = useState<PortfolioSummary | null>(null);
+  const [ativosDisponiveis, setAtivosDisponiveis] = useState<Ativo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState<"Todos" | "Ação" | "FII">("Todos");
   const [dialogOpen, setDialogOpen] = useState(false);
   const { theme } = useTheme();
 
   // Form states
-  const [novoTicker, setNovoTicker] = useState("");
-  const [novoNome, setNovoNome] = useState("");
-  const [novoTipo, setNovoTipo] = useState<"Ação" | "FII">("Ação");
+  const [tipoTransacao, setTipoTransacao] = useState<"compra" | "venda">("compra");
+  const [tipoAtivo, setTipoAtivo] = useState<"Ação" | "FII">("Ação");
+  const [searchTicker, setSearchTicker] = useState("");
+  const [selectedAtivo, setSelectedAtivo] = useState<Ativo | null>(null);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [novaQuantidade, setNovaQuantidade] = useState("");
   const [novoPreco, setNovoPreco] = useState("");
-  const [novoSetor, setNovoSetor] = useState("");
+  const [dataTransacao, setDataTransacao] = useState(() => {
+    return new Date().toISOString().split('T')[0];
+  });
 
-  const ativosFiltrados = ativos.filter(
-    (ativo) => filtroTipo === "Todos" || ativo.tipo === filtroTipo
-  );
+  const searchRef = useRef<HTMLDivElement>(null);
 
-  const calcularLucro = (ativo: Ativo) => {
-    return (ativo.precoAtual - ativo.precoMedio) * ativo.quantidade;
+  // Carregar dados
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Fechar sugestões ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const loadData = async () => {
+    setLoading(true);
+    try {
+      const [portfolioRes, ativosRes] = await Promise.all([
+        investmentsService.getPortfolio(),
+        investmentsService.getAtivos(),
+      ]);
+
+      if (portfolioRes.data) {
+        setPortfolio(portfolioRes.data.items);
+        setSummary(portfolioRes.data.summary);
+      }
+
+      if (ativosRes.data) {
+        setAtivosDisponiveis(ativosRes.data);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const calcularRentabilidade = (ativo: Ativo) => {
-    return ((ativo.precoAtual - ativo.precoMedio) / ativo.precoMedio) * 100;
+  // Filtrar ativos baseado na busca e tipo
+  const ativosFiltrados = ativosDisponiveis.filter(ativo => {
+    const matchTipo = ativo.tipo === tipoAtivo;
+    const matchSearch = searchTicker.length >= 2 && (
+      ativo.ticker.toLowerCase().includes(searchTicker.toLowerCase()) ||
+      ativo.nome.toLowerCase().includes(searchTicker.toLowerCase())
+    );
+    return matchTipo && matchSearch;
+  }).slice(0, 10); // Limitar a 10 resultados
+
+  // Atualizar preço sugerido quando selecionar ativo
+  useEffect(() => {
+    if (selectedAtivo) {
+      setNovoPreco(selectedAtivo.precoAtual.toString());
+    }
+  }, [selectedAtivo]);
+
+  const handleSelectAtivo = (ativo: Ativo) => {
+    setSelectedAtivo(ativo);
+    setSearchTicker(ativo.ticker);
+    setShowSuggestions(false);
   };
 
-  const valorTotal = ativos.reduce(
-    (acc, ativo) => acc + ativo.precoAtual * ativo.quantidade,
-    0
-  );
+  const handleClearAtivo = () => {
+    setSelectedAtivo(null);
+    setSearchTicker("");
+    setNovoPreco("");
+  };
 
-  const lucroTotal = ativos.reduce((acc, ativo) => acc + calcularLucro(ativo), 0);
+  const portfolioFiltrado = portfolio.filter(
+    (item) => filtroTipo === "Todos" || item.ativo.tipo === filtroTipo
+  );
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -112,32 +115,66 @@ export default function CarteiraScreen() {
     }).format(value);
   };
 
-  const handleAdicionarAtivo = () => {
-    if (!novoTicker || !novoNome || !novaQuantidade || !novoPreco) {
+  const handleAdicionarTransacao = async () => {
+    if (!selectedAtivo || !novaQuantidade || !novoPreco || !dataTransacao) {
       return;
     }
 
-    const novoAtivo: Ativo = {
-      id: Date.now().toString(),
-      ticker: novoTicker.toUpperCase(),
-      nome: novoNome,
-      tipo: novoTipo,
-      quantidade: parseInt(novaQuantidade),
-      precoMedio: parseFloat(novoPreco),
-      precoAtual: parseFloat(novoPreco) * (1 + (Math.random() * 0.2 - 0.1)), // Mock random price
-      setor: novoSetor || "Outros",
-    };
+    setSaving(true);
+    try {
+      const response = await investmentsService.create({
+        ativoId: selectedAtivo.id,
+        quantity: tipoTransacao === "venda" ? -parseFloat(novaQuantidade) : parseFloat(novaQuantidade),
+        purchasePrice: parseFloat(novoPreco),
+        purchaseDate: dataTransacao,
+      });
 
-    setAtivos([...ativos, novoAtivo]);
-    
-    // Reset form
-    setNovoTicker("");
-    setNovoNome("");
+      if (response.data) {
+        await loadData();
+      }
+
+      // Reset form
+      resetForm();
+      setDialogOpen(false);
+    } catch (error) {
+      console.error("Erro ao adicionar transação:", error);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const resetForm = () => {
+    setTipoTransacao("compra");
+    setTipoAtivo("Ação");
+    setSelectedAtivo(null);
+    setSearchTicker("");
     setNovaQuantidade("");
     setNovoPreco("");
-    setNovoSetor("");
-    setDialogOpen(false);
+    setDataTransacao(new Date().toISOString().split('T')[0]);
   };
+
+  const handleRemoverTransacoes = async (ativoId: number) => {
+    try {
+      const response = await investmentsService.getAll();
+      if (response.data) {
+        const transacoes = response.data.filter(t => t.ativoId === ativoId);
+        for (const transacao of transacoes) {
+          await investmentsService.delete(transacao.id);
+        }
+        await loadData();
+      }
+    } catch (error) {
+      console.error("Erro ao remover transações:", error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} flex items-center justify-center`}>
+        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+      </div>
+    );
+  }
 
   return (
     <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} pb-4`}>
@@ -145,87 +182,251 @@ export default function CarteiraScreen() {
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-2xl">Carteira</h1>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open: boolean) => { setDialogOpen(open); if (!open) resetForm(); }}>
             <DialogTrigger asChild>
               <button className="p-2 bg-emerald-600 rounded-full hover:bg-emerald-700 transition-colors">
                 <Plus className="w-5 h-5 text-white" />
               </button>
             </DialogTrigger>
-            <DialogContent className={`${theme === "dark" ? "bg-zinc-900 border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"} max-w-[380px]`}>
+            <DialogContent className={`${theme === "dark" ? "bg-zinc-900 border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"} !w-[95vw] !max-w-[95vw] sm:!max-w-[95vw] max-h-[90vh] overflow-y-auto`}>
               <DialogHeader>
-                <DialogTitle>Adicionar Ativo</DialogTitle>
+                <DialogTitle className="text-lg">Nova Transação</DialogTitle>
               </DialogHeader>
+
               <div className="space-y-4 mt-4">
-                <div>
-                  <Label htmlFor="ticker">Ticker</Label>
-                  <Input
-                    id="ticker"
-                    placeholder="Ex: ITUB4"
-                    value={novoTicker}
-                    onChange={(e) => setNovoTicker(e.target.value)}
-                    className={`${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} mt-1`}
-                  />
+                {/* Toggle Compra/Venda */}
+                <div className={`flex rounded-lg overflow-hidden border ${theme === 'dark' ? 'border-zinc-700' : 'border-zinc-200'}`}>
+                  <button
+                    type="button"
+                    onClick={() => setTipoTransacao("compra")}
+                    style={{
+                      backgroundColor: tipoTransacao === "compra" 
+                        ? "#059669" 
+                        : theme === "dark" ? "#27272a" : "#f4f4f5"
+                    }}
+                    className={`flex-1 py-4 text-base font-medium transition-colors ${
+                      tipoTransacao === "compra"
+                        ? "text-white"
+                        : theme === "dark" ? "text-zinc-400" : "text-zinc-600"
+                    }`}
+                  >
+                    Compra
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTipoTransacao("venda")}
+                    style={{
+                      backgroundColor: tipoTransacao === "venda" 
+                        ? "#dc2626" 
+                        : theme === "dark" ? "#27272a" : "#f4f4f5"
+                    }}
+                    className={`flex-1 py-4 text-base font-medium transition-colors ${
+                      tipoTransacao === "venda"
+                        ? "text-white"
+                        : theme === "dark" ? "text-zinc-400" : "text-zinc-600"
+                    }`}
+                  >
+                    Venda
+                  </button>
                 </div>
+
+                {/* Toggle Ação/FII */}
                 <div>
-                  <Label htmlFor="nome">Nome</Label>
+                  <Label className="text-xs mb-2 block">Tipo de Ativo</Label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => { setTipoAtivo("Ação"); handleClearAtivo(); }}
+                      style={{
+                        backgroundColor: tipoAtivo === "Ação" 
+                          ? "#2563eb" 
+                          : theme === "dark" ? "#27272a" : "#f4f4f5"
+                      }}
+                      className={`flex-1 py-3 text-sm rounded-lg transition-colors ${
+                        tipoAtivo === "Ação"
+                          ? "text-white"
+                          : theme === "dark" ? "text-zinc-400 border border-zinc-700" : "text-zinc-600 border border-zinc-200"
+                      }`}
+                    >
+                      Ação
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setTipoAtivo("FII"); handleClearAtivo(); }}
+                      style={{
+                        backgroundColor: tipoAtivo === "FII" 
+                          ? "#9333ea" 
+                          : theme === "dark" ? "#27272a" : "#f4f4f5"
+                      }}
+                      className={`flex-1 py-3 text-sm rounded-lg transition-colors ${
+                        tipoAtivo === "FII"
+                          ? "text-white"
+                          : theme === "dark" ? "text-zinc-400 border border-zinc-700" : "text-zinc-600 border border-zinc-200"
+                      }`}
+                    >
+                      FII
+                    </button>
+                  </div>
+                </div>
+
+                {/* Campo de Busca com Autocomplete */}
+                <div ref={searchRef} className="relative">
+                  <Label htmlFor="ticker" className="text-xs">Buscar Ticker</Label>
+                  <div className="relative mt-1">
+                    {!searchTicker && <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />}
+                    <Input
+                      id="ticker"
+                      placeholder={`Digite o ticker (ex: ${tipoAtivo === "Ação" ? "PETR4" : "HGLG11"})`}
+                      value={searchTicker}
+                      onChange={(e) => {
+                        setSearchTicker(e.target.value);
+                        setShowSuggestions(true);
+                        if (selectedAtivo && e.target.value !== selectedAtivo.ticker) {
+                          setSelectedAtivo(null);
+                        }
+                      }}
+                      onFocus={() => setShowSuggestions(true)}
+                      className={`pl-9 pr-9 text-center ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
+                    />
+                    {searchTicker && (
+                      <button
+                        type="button"
+                        onClick={handleClearAtivo}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+                      >
+                        <X className={`w-4 h-4 ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Lista de Sugestões */}
+                  {showSuggestions && ativosFiltrados.length > 0 && (
+                    <div className={`absolute z-50 w-full mt-1 rounded-lg shadow-lg max-h-48 overflow-y-auto ${theme === "dark" ? "bg-zinc-800 border border-zinc-700" : "bg-white border border-zinc-200"
+                      }`}>
+                      {ativosFiltrados.map((ativo) => (
+                        <button
+                          key={ativo.id}
+                          type="button"
+                          onClick={() => handleSelectAtivo(ativo)}
+                          className={`w-full px-3 py-2.5 text-left flex items-center justify-between ${theme === "dark" ? "hover:bg-zinc-700" : "hover:bg-zinc-50"
+                            } ${selectedAtivo?.id === ativo.id ? (theme === "dark" ? "bg-zinc-700" : "bg-zinc-100") : ""}`}
+                        >
+                          <div>
+                            <span className="font-medium text-sm">{ativo.ticker}</span>
+                            <span className={`text-xs ml-2 ${theme === "dark" ? "text-zinc-400" : "text-zinc-500"}`}>
+                              {ativo.nome.length > 20 ? ativo.nome.substring(0, 20) + "..." : ativo.nome}
+                            </span>
+                          </div>
+                          <span className="text-xs text-emerald-500">{formatCurrency(Number(ativo.precoAtual))}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {showSuggestions && searchTicker.length >= 2 && ativosFiltrados.length === 0 && (
+                    <div className={`absolute z-50 w-full mt-1 rounded-lg shadow-lg p-3 text-center text-sm ${theme === "dark" ? "bg-zinc-800 border border-zinc-700 text-zinc-400" : "bg-white border border-zinc-200 text-zinc-500"
+                      }`}>
+                      Nenhum {tipoAtivo} encontrado
+                    </div>
+                  )}
+                </div>
+
+                {/* Campo Nome (preenchido automaticamente) */}
+                <div>
+                  <Label htmlFor="nome" className="text-xs">Nome do Ativo</Label>
                   <Input
                     id="nome"
-                    placeholder="Ex: Itaú Unibanco"
-                    value={novoNome}
-                    onChange={(e) => setNovoNome(e.target.value)}
-                    className={`${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} mt-1`}
+                    value={selectedAtivo?.nome || ""}
+                    disabled
+                    placeholder="Selecione um ativo acima"
+                    className={`mt-1 ${theme === "dark" ? "bg-zinc-800/50 border-zinc-700 text-zinc-400" : "bg-zinc-100 border-zinc-200 text-zinc-500"}`}
                   />
                 </div>
+
+                {/* Info do Ativo Selecionado */}
+                {selectedAtivo && (
+                  <div className={`p-3 rounded-lg ${theme === "dark" ? "bg-zinc-800" : "bg-zinc-100"}`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
+                        {selectedAtivo.categoria || "Sem categoria"}
+                      </span>
+                      <span className="text-sm font-medium text-emerald-500">
+                        {formatCurrency(Number(selectedAtivo.precoAtual))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Data da Transação */}
                 <div>
-                  <Label htmlFor="tipo">Tipo</Label>
-                  <select
-                    id="tipo"
-                    value={novoTipo}
-                    onChange={(e) => setNovoTipo(e.target.value as "Ação" | "FII")}
-                    className={`w-full ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} border rounded-md px-3 py-2 mt-1`}
-                  >
-                    <option value="Ação">Ação</option>
-                    <option value="FII">FII</option>
-                  </select>
+                  <Label htmlFor="dataTransacao" className="text-xs">Data da {tipoTransacao === "compra" ? "Compra" : "Venda"}</Label>
+                  <div className="relative mt-1">
+                    <Calendar className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />
+                    <Input
+                      id="dataTransacao"
+                      type="date"
+                      value={dataTransacao}
+                      onChange={(e) => setDataTransacao(e.target.value)}
+                      className={`pl-10 ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="quantidade">Quantidade</Label>
-                  <Input
-                    id="quantidade"
-                    type="number"
-                    placeholder="100"
-                    value={novaQuantidade}
-                    onChange={(e) => setNovaQuantidade(e.target.value)}
-                    className={`${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} mt-1`}
-                  />
+
+                {/* Quantidade e Preço em linha */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="quantidade" className="text-xs">Quantidade</Label>
+                    <Input
+                      id="quantidade"
+                      type="number"
+                      placeholder="100"
+                      value={novaQuantidade}
+                      onChange={(e) => setNovaQuantidade(e.target.value)}
+                      className={`mt-1 ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="preco" className="text-xs">Preço Unitário</Label>
+                    <Input
+                      id="preco"
+                      type="number"
+                      step="0.01"
+                      placeholder="28.50"
+                      value={novoPreco}
+                      onChange={(e) => setNovoPreco(e.target.value)}
+                      className={`mt-1 ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <Label htmlFor="preco">Preço Médio</Label>
-                  <Input
-                    id="preco"
-                    type="number"
-                    step="0.01"
-                    placeholder="28.50"
-                    value={novoPreco}
-                    onChange={(e) => setNovoPreco(e.target.value)}
-                    className={`${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} mt-1`}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="setor">Setor</Label>
-                  <Input
-                    id="setor"
-                    placeholder="Ex: Financeiro"
-                    value={novoSetor}
-                    onChange={(e) => setNovoSetor(e.target.value)}
-                    className={`${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"} mt-1`}
-                  />
-                </div>
+
+                {/* Valor Total */}
+                {novaQuantidade && novoPreco && (
+                  <div className={`p-3 rounded-lg ${tipoTransacao === "compra"
+                      ? (theme === "dark" ? "bg-emerald-900/30" : "bg-emerald-50")
+                      : (theme === "dark" ? "bg-red-900/30" : "bg-red-50")
+                    }`}>
+                    <p className={`text-xs ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
+                      Valor total da {tipoTransacao}
+                    </p>
+                    <p className={`text-xl font-semibold ${tipoTransacao === "compra" ? "text-emerald-500" : "text-red-500"}`}>
+                      {formatCurrency(parseFloat(novaQuantidade) * parseFloat(novoPreco))}
+                    </p>
+                  </div>
+                )}
+
+                {/* Botão de Confirmar */}
                 <Button
-                  onClick={handleAdicionarAtivo}
-                  className="w-full bg-emerald-600 hover:bg-emerald-700"
+                  onClick={handleAdicionarTransacao}
+                  disabled={saving || !selectedAtivo || !novaQuantidade || !novoPreco}
+                  style={{
+                    backgroundColor: tipoTransacao === "compra" ? "#059669" : "#dc2626"
+                  }}
+                  className="w-full py-3 text-white hover:opacity-90"
                 >
-                  Adicionar
+                  {saving ? (
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  ) : null}
+                  Confirmar {tipoTransacao === "compra" ? "Compra" : "Venda"}
                 </Button>
               </div>
             </DialogContent>
@@ -235,16 +436,16 @@ export default function CarteiraScreen() {
         {/* Resumo */}
         <div className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-6 mb-6">
           <p className="text-blue-100 text-sm mb-2">Valor Total da Carteira</p>
-          <h2 className="text-3xl mb-3 text-white">{formatCurrency(valorTotal)}</h2>
+          <h2 className="text-3xl mb-3 text-white">{formatCurrency(summary?.totalValue || 0)}</h2>
           <div className="flex items-center gap-2">
-            {lucroTotal >= 0 ? (
+            {(summary?.profitLoss || 0) >= 0 ? (
               <TrendingUp className="w-4 h-4 text-blue-200" />
             ) : (
               <TrendingDown className="w-4 h-4 text-red-300" />
             )}
-            <span className={`text-sm ${lucroTotal >= 0 ? "text-blue-200" : "text-red-300"}`}>
-              {lucroTotal >= 0 ? "+" : ""}
-              {formatCurrency(lucroTotal)} de lucro
+            <span className={`text-sm ${(summary?.profitLoss || 0) >= 0 ? "text-blue-200" : "text-red-300"}`}>
+              {(summary?.profitLoss || 0) >= 0 ? "+" : ""}
+              {formatCurrency(summary?.profitLoss || 0)} ({(summary?.profitLossPercentage || 0).toFixed(2)}%)
             </span>
           </div>
         </div>
@@ -255,13 +456,12 @@ export default function CarteiraScreen() {
             <button
               key={tipo}
               onClick={() => setFiltroTipo(tipo as typeof filtroTipo)}
-              className={`px-4 py-2 rounded-full text-sm transition-colors ${
-                filtroTipo === tipo
+              className={`px-4 py-2 rounded-full text-sm transition-colors ${filtroTipo === tipo
                   ? "bg-emerald-600 text-white"
                   : theme === "dark"
                     ? "bg-zinc-900 text-zinc-400 hover:bg-zinc-800"
                     : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
-              }`}
+                }`}
             >
               {tipo}
             </button>
@@ -269,67 +469,94 @@ export default function CarteiraScreen() {
         </div>
       </div>
 
-      {/* Lista de Ativos */}
+      {/* Lista de Ativos da Carteira */}
       <div className="px-4 space-y-3">
-        {ativosFiltrados.map((ativo) => {
-          const lucro = calcularLucro(ativo);
-          const rentabilidade = calcularRentabilidade(ativo);
-          const valorPosicao = ativo.precoAtual * ativo.quantidade;
-          const peso = (valorPosicao / valorTotal) * 100;
+        {portfolioFiltrado.length === 0 ? (
+          <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-8 text-center`}>
+            <p className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"} mb-2`}>
+              {portfolio.length === 0
+                ? "Nenhum ativo na carteira"
+                : "Nenhum ativo encontrado para este filtro"}
+            </p>
+            <p className={`${theme === "dark" ? "text-zinc-500" : "text-zinc-500"} text-sm`}>
+              {portfolio.length === 0
+                ? "Clique no + para adicionar sua primeira compra"
+                : "Tente outro filtro"}
+            </p>
+          </div>
+        ) : (
+          portfolioFiltrado.map((item) => {
+            const peso = summary && summary.totalValue > 0
+              ? (item.currentValue / summary.totalValue) * 100
+              : 0;
 
-          return (
-            <div key={ativo.id} className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3>{ativo.ticker}</h3>
-                    <span className={`px-2 py-0.5 ${theme === "dark" ? "bg-zinc-800 text-zinc-300" : "bg-zinc-200 text-zinc-700"} text-xs rounded`}>
-                      {ativo.tipo}
-                    </span>
+            return (
+              <div key={item.ativo.id} className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3>{item.ativo.ticker}</h3>
+                      <span className={`px-2 py-0.5 ${theme === "dark" ? "bg-zinc-800 text-zinc-300" : "bg-zinc-200 text-zinc-700"} text-xs rounded`}>
+                        {item.ativo.tipo}
+                      </span>
+                    </div>
+                    <p className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"} text-sm`}>{item.ativo.nome}</p>
+                    <p className={`${theme === "dark" ? "text-zinc-500" : "text-zinc-500"} text-xs mt-1`}>
+                      {item.ativo.categoria || "Sem categoria"} • {item.transactionCount} transação(ões)
+                    </p>
                   </div>
-                  <p className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"} text-sm`}>{ativo.nome}</p>
-                  <p className={`${theme === "dark" ? "text-zinc-500" : "text-zinc-500"} text-xs mt-1`}>{ativo.setor}</p>
+                  <div className="text-right flex items-start gap-2">
+                    <div>
+                      <p className={`${item.profitLoss >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                        {item.profitLossPercentage >= 0 ? "+" : ""}
+                        {item.profitLossPercentage.toFixed(2)}%
+                      </p>
+                      <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"} mt-1`}>
+                        {peso.toFixed(1)}% da carteira
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => handleRemoverTransacoes(item.ativo.id)}
+                      className={`p-1.5 rounded-full ${theme === "dark" ? "hover:bg-zinc-800" : "hover:bg-zinc-200"} transition-colors`}
+                      title="Remover todas as transações deste ativo"
+                    >
+                      <Trash2 className="w-4 h-4 text-red-400" />
+                    </button>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className={`${lucro >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                    {rentabilidade >= 0 ? "+" : ""}
-                    {rentabilidade.toFixed(2)}%
-                  </p>
-                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"} mt-1`}>{peso.toFixed(1)}% da carteira</p>
-                </div>
-              </div>
 
-              <div className={`grid grid-cols-3 gap-3 pt-3 border-t ${theme === "dark" ? "border-zinc-800" : "border-zinc-200"}`}>
-                <div>
-                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Quantidade</p>
-                  <p className="text-sm">{ativo.quantidade}</p>
+                <div className={`grid grid-cols-3 gap-3 pt-3 border-t ${theme === "dark" ? "border-zinc-800" : "border-zinc-200"}`}>
+                  <div>
+                    <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Quantidade</p>
+                    <p className="text-sm">{item.totalQuantity}</p>
+                  </div>
+                  <div>
+                    <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Preço Médio</p>
+                    <p className="text-sm">{formatCurrency(item.averagePrice)}</p>
+                  </div>
+                  <div>
+                    <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Preço Atual</p>
+                    <p className="text-sm">{formatCurrency(item.currentPrice)}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Preço Médio</p>
-                  <p className="text-sm">{formatCurrency(ativo.precoMedio)}</p>
-                </div>
-                <div>
-                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Preço Atual</p>
-                  <p className="text-sm">{formatCurrency(ativo.precoAtual)}</p>
-                </div>
-              </div>
 
-              <div className={`mt-3 pt-3 border-t ${theme === "dark" ? "border-zinc-800" : "border-zinc-200"} flex items-center justify-between`}>
-                <div>
-                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Valor da Posição</p>
-                  <p>{formatCurrency(valorPosicao)}</p>
-                </div>
-                <div className="text-right">
-                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Lucro/Prejuízo</p>
-                  <p className={lucro >= 0 ? "text-emerald-400" : "text-red-400"}>
-                    {lucro >= 0 ? "+" : ""}
-                    {formatCurrency(lucro)}
-                  </p>
+                <div className={`mt-3 pt-3 border-t ${theme === "dark" ? "border-zinc-800" : "border-zinc-200"} flex items-center justify-between`}>
+                  <div>
+                    <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Valor da Posição</p>
+                    <p>{formatCurrency(item.currentValue)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Lucro/Prejuízo</p>
+                    <p className={item.profitLoss >= 0 ? "text-emerald-400" : "text-red-400"}>
+                      {item.profitLoss >= 0 ? "+" : ""}
+                      {formatCurrency(item.profitLoss)}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
     </div>
   );

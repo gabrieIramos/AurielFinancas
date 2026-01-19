@@ -1,6 +1,8 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { authService, User as AuthUser } from "../services/auth.service";
 
 type User = {
+  id: string;
   name: string;
   email: string;
 };
@@ -9,16 +11,21 @@ type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
   hasSeenOnboarding: boolean;
-  login: (email: string, password: string) => void;
-  signup: (name: string, email: string, password: string) => void;
+  isLoading: boolean;
+  error: string | null;
+  login: (email: string, password: string) => Promise<boolean>;
+  signup: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => void;
   completeOnboarding: () => void;
+  clearError: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(() => {
     const seen = localStorage.getItem("hasSeenOnboarding");
     return seen === "true";
@@ -26,40 +33,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check if user is logged in
-    const savedUser = localStorage.getItem("user");
+    const savedUser = authService.getUser();
     if (savedUser) {
-      setUser(JSON.parse(savedUser));
+      setUser({
+        id: savedUser.id,
+        name: savedUser.fullName,
+        email: savedUser.email,
+      });
     }
   }, []);
 
-  const login = (email: string, password: string) => {
-    // Mock login - in production, this would call an API
-    const mockUser: User = {
-      name: "Rafael Silva",
-      email: email,
-    };
-    setUser(mockUser);
-    localStorage.setItem("user", JSON.stringify(mockUser));
+  const login = async (email: string, password: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await authService.login({ email, password });
+      
+      if (response.data) {
+        setUser({
+          id: response.data.user.id,
+          name: response.data.user.fullName,
+          email: response.data.user.email,
+        });
+        return true;
+      } else if (response.error) {
+        setError(response.error);
+        return false;
+      }
+      return false;
+    } catch (err) {
+      setError("Erro ao fazer login. Tente novamente.");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const signup = (name: string, email: string, password: string) => {
-    // Mock signup - in production, this would call an API
-    const newUser: User = {
-      name: name,
-      email: email,
-    };
-    setUser(newUser);
-    localStorage.setItem("user", JSON.stringify(newUser));
+  const signup = async (name: string, email: string, password: string): Promise<boolean> => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await authService.register({ 
+        fullName: name, 
+        email, 
+        password 
+      });
+      
+      if (response.data) {
+        setUser({
+          id: response.data.user.id,
+          name: response.data.user.fullName,
+          email: response.data.user.email,
+        });
+        return true;
+      } else if (response.error) {
+        setError(response.error);
+        return false;
+      }
+      return false;
+    } catch (err) {
+      setError("Erro ao criar conta. Tente novamente.");
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const logout = () => {
+    authService.logout();
     setUser(null);
-    localStorage.removeItem("user");
   };
 
   const completeOnboarding = () => {
     setHasSeenOnboarding(true);
     localStorage.setItem("hasSeenOnboarding", "true");
+  };
+
+  const clearError = () => {
+    setError(null);
   };
 
   return (
@@ -68,10 +121,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isAuthenticated: !!user,
         hasSeenOnboarding,
+        isLoading,
+        error,
         login,
         signup,
         logout,
         completeOnboarding,
+        clearError,
       }}
     >
       {children}

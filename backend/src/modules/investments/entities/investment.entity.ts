@@ -2,11 +2,13 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
+  CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Ativo } from './ativo.entity';
 
 @Entity('investments')
 export class Investment {
@@ -16,32 +18,29 @@ export class Investment {
   @Column({ name: 'user_id', type: 'uuid' })
   userId: string;
 
-  @Column({ type: 'varchar', length: 20 })
-  ticker: string;
-
-  @Column({ type: 'varchar', length: 50 })
-  type: string;
+  @Column({ name: 'ativo_id', type: 'bigint' })
+  ativoId: number;
 
   @Column({ type: 'decimal', precision: 18, scale: 8, default: 0 })
   quantity: number;
 
   @Column({
-    name: 'average_price',
+    name: 'purchase_price',
     type: 'decimal',
     precision: 18,
     scale: 2,
     default: 0,
   })
-  averagePrice: number;
+  purchasePrice: number;
 
   @Column({
-    name: 'current_price',
-    type: 'decimal',
-    precision: 18,
-    scale: 2,
-    default: 0,
+    name: 'purchase_date',
+    type: 'date',
   })
-  currentPrice: number;
+  purchaseDate: Date;
+
+  @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
+  createdAt: Date;
 
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamp with time zone' })
   updatedAt: Date;
@@ -49,4 +48,8 @@ export class Investment {
   @ManyToOne(() => User, (user) => user.investments, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'user_id' })
   user: User;
+
+  @ManyToOne(() => Ativo, (ativo) => ativo.investments, { eager: true })
+  @JoinColumn({ name: 'ativo_id' })
+  ativo: Ativo;
 }

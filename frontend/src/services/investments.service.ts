@@ -1,32 +1,96 @@
 import { api } from './api';
 
-export interface Investment {
+// Ativo da tabela fixa (ações, FIIs cadastrados)
+export interface Ativo {
   id: number;
-  name: string;
+  nome: string;
   ticker: string;
-  type: string;
+  tipo: string;
+  categoria: string;
+  precoAtual: number;
+  dataCriacao?: string;
+}
+
+// Transação de investimento do usuário
+export interface Investment {
+  id: string;
+  userId: string;
+  ativoId: number;
   quantity: number;
+  purchasePrice: number;
+  purchaseDate: string;
+  createdAt?: string;
+  updatedAt?: string;
+  ativo: Ativo;
+}
+
+// Item da carteira consolidada
+export interface PortfolioItem {
+  ativo: Ativo;
+  totalQuantity: number;
   averagePrice: number;
   currentPrice: number;
-  totalValue: number;
+  totalCost: number;
+  currentValue: number;
   profitLoss: number;
   profitLossPercentage: number;
+  transactionCount: number;
+}
+
+// Resumo da carteira
+export interface PortfolioSummary {
+  totalValue: number;
+  totalCost: number;
+  profitLoss: number;
+  profitLossPercentage: number;
+  assetCount: number;
+}
+
+// Resposta do endpoint de portfolio
+export interface PortfolioResponse {
+  items: PortfolioItem[];
+  summary: PortfolioSummary;
 }
 
 export interface CreateInvestmentData {
-  name: string;
-  ticker: string;
-  type: string;
+  ativoId: number;
   quantity: number;
-  averagePrice: number;
+  purchasePrice: number;
+  purchaseDate: string;
+}
+
+export interface UpdateInvestmentData {
+  ativoId?: number;
+  quantity?: number;
+  purchasePrice?: number;
+  purchaseDate?: string;
 }
 
 class InvestmentsService {
+  // ========== ATIVOS ==========
+  
+  async getAtivos(tipo?: string) {
+    const endpoint = tipo ? `/investments/ativos?tipo=${encodeURIComponent(tipo)}` : '/investments/ativos';
+    return api.get<Ativo[]>(endpoint);
+  }
+
+  async getAtivoById(id: number) {
+    return api.get<Ativo>(`/investments/ativos/${id}`);
+  }
+
+  // ========== PORTFOLIO (carteira consolidada) ==========
+
+  async getPortfolio() {
+    return api.get<PortfolioResponse>('/investments/portfolio');
+  }
+
+  // ========== INVESTMENTS (transações) ==========
+
   async getAll() {
     return api.get<Investment[]>('/investments');
   }
 
-  async getById(id: number) {
+  async getById(id: string) {
     return api.get<Investment>(`/investments/${id}`);
   }
 
@@ -34,46 +98,12 @@ class InvestmentsService {
     return api.post<Investment>('/investments', data);
   }
 
-  async update(id: number, data: Partial<CreateInvestmentData>) {
+  async update(id: string, data: UpdateInvestmentData) {
     return api.put<Investment>(`/investments/${id}`, data);
   }
 
-  async delete(id: number) {
+  async delete(id: string) {
     return api.delete(`/investments/${id}`);
-  }
-
-  async getPortfolioSummary() {
-    // Calcular do endpoint /investments que funciona
-    try {
-      const allInvestments = await this.getAll();
-      if (allInvestments.data && Array.isArray(allInvestments.data)) {
-        const summary = {
-          total: allInvestments.data.reduce((acc, inv) => acc + inv.totalValue, 0),
-          profitLoss: allInvestments.data.reduce((acc, inv) => acc + inv.profitLoss, 0),
-          count: allInvestments.data.length,
-          allocation: this.calculateAllocation(allInvestments.data),
-        };
-        return { data: summary };
-      }
-    } catch (e) {
-      // silently fail
-    }
-
-    return { data: { total: 0, profitLoss: 0, count: 0, allocation: [] } };
-  }
-
-  private calculateAllocation(investments: Investment[]) {
-    // Agrupar investimentos por tipo
-    const byType: Record<string, number> = {};
-    
-    investments.forEach(inv => {
-      byType[inv.type] = (byType[inv.type] || 0) + inv.totalValue;
-    });
-
-    return Object.entries(byType).map(([type, total]) => ({
-      type,
-      total,
-    }));
   }
 }
 
