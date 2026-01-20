@@ -66,17 +66,34 @@ export default function IAScreen() {
   const [insights, setInsights] = useState<AIInitialInsights | null>(null);
   const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const isInitialLoad = useRef(true);
   const { theme } = useTheme();
 
   // Carregar KPIs e Insights ao iniciar
   useEffect(() => {
+    // Scroll para o topo da página ao carregar
+    window.scrollTo(0, 0);
     loadData();
   }, []);
 
-  // Scroll para última mensagem
+  // Scroll para última mensagem (apenas quando o usuário envia mensagem)
   useEffect(() => {
+    if (isInitialLoad.current) {
+      return;
+    }
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Marcar que o carregamento inicial terminou após os dados serem carregados
+  useEffect(() => {
+    if (!loading && isInitialLoad.current) {
+      // Pequeno delay para garantir que o scroll para o topo seja aplicado
+      setTimeout(() => {
+        window.scrollTo(0, 0);
+        isInitialLoad.current = false;
+      }, 100);
+    }
+  }, [loading]);
 
   const loadData = async (forceRefresh = false) => {
     setLoading(true);
@@ -289,14 +306,7 @@ export default function IAScreen() {
               <h1 className="text-2xl">Inteligência Financeira</h1>
               <p className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"} text-sm`}>Insights personalizados para você</p>
             </div>
-          </div>
-          <button
-            onClick={handleRefreshInsights}
-            className={`p-2 ${theme === "dark" ? "bg-zinc-900 hover:bg-zinc-800" : "bg-zinc-100 hover:bg-zinc-200"} rounded-full transition-colors`}
-            title="Atualizar insights (gerar novos pela IA)"
-          >
-            <RefreshCw className="w-5 h-5" />
-          </button>
+          </div>          
         </div>
 
         {/* Saúde Financeira Score */}
@@ -436,108 +446,7 @@ export default function IAScreen() {
               </div>
             )}
           </>
-        )}
-
-        {/* Resumo Financeiro */}
-        {kpis && (
-          <div className="mb-6">
-            <h3 className="mb-3 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-emerald-500" />
-              Resumo dos Últimos 30 Dias
-            </h3>
-            <div className="grid grid-cols-2 gap-3">
-              <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
-                <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Receitas</p>
-                <p className="text-emerald-400 text-lg">{formatCurrency(kpis.totalIncome)}</p>
-              </div>
-              <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
-                <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Despesas</p>
-                <p className="text-red-400 text-lg">{formatCurrency(kpis.totalExpenses)}</p>
-              </div>
-              <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
-                <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Saldo</p>
-                <p className={`text-lg ${kpis.balance >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {formatCurrency(kpis.balance)}
-                </p>
-              </div>
-              <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
-                <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-1`}>Transações</p>
-                <p className="text-lg">{kpis.transactionCount}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Top Categorias de Gastos */}
-        {kpis && kpis.topExpenseCategories.length > 0 && (
-          <div className="mb-6">
-            <h3 className="mb-3 flex items-center gap-2">
-              <PieChart className="w-5 h-5 text-blue-500" />
-              Maiores Gastos por Categoria
-            </h3>
-            <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4 space-y-3`}>
-              {kpis.topExpenseCategories.map((category, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-2 h-2 rounded-full ${
-                      index === 0 ? "bg-red-400" : 
-                      index === 1 ? "bg-orange-400" : 
-                      index === 2 ? "bg-yellow-400" : "bg-zinc-400"
-                    }`} />
-                    <span className={`text-sm ${theme === "dark" ? "text-zinc-300" : "text-zinc-700"}`}>
-                      {category.name}
-                    </span>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-sm">{formatCurrency(category.amount)}</span>
-                    <span className={`text-xs ml-2 ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>
-                      ({category.percentage.toFixed(1)}%)
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Carteira de Investimentos */}
-        {kpis && kpis.portfolioValue > 0 && (
-          <div className="mb-6">
-            <h3 className="mb-3 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-purple-500" />
-              Carteira de Investimentos
-            </h3>
-            <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
-              <div className="flex items-center justify-between mb-3">
-                <span className={`text-sm ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>Valor Total</span>
-                <span className="text-lg">{formatCurrency(kpis.portfolioValue)}</span>
-              </div>
-              <div className="flex items-center justify-between mb-3">
-                <span className={`text-sm ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>Resultado</span>
-                <span className={`text-lg ${kpis.portfolioProfitLoss >= 0 ? "text-emerald-400" : "text-red-400"}`}>
-                  {kpis.portfolioProfitLoss >= 0 ? "+" : ""}{formatCurrency(kpis.portfolioProfitLoss)} ({kpis.portfolioProfitLossPercentage.toFixed(2)}%)
-                </span>
-              </div>
-              {kpis.portfolioDistribution.length > 0 && (
-                <div className="pt-3 border-t border-zinc-800">
-                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-600"} mb-2`}>Distribuição</p>
-                  <div className="flex gap-4">
-                    {kpis.portfolioDistribution.map((item, index) => (
-                      <div key={index} className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded ${
-                          item.tipo === "Ação" ? "bg-blue-500" : "bg-purple-500"
-                        }`} />
-                        <span className={`text-sm ${theme === "dark" ? "text-zinc-300" : "text-zinc-700"}`}>
-                          {item.tipo}: {item.percentage.toFixed(1)}%
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        )}        
       </div>
 
       {/* Chat Section */}

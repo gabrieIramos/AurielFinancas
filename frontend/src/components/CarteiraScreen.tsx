@@ -504,7 +504,7 @@ export default function CarteiraScreen() {
 
         {/* Campo de Busca */}
         <div className="relative mb-6">
-          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />
+          {!filtroSearch && <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />}
           <Input
             placeholder="Buscar por ticker ou nome..."
             value={filtroSearch}
@@ -516,7 +516,7 @@ export default function CarteiraScreen() {
               onClick={() => setFiltroSearch("")}
               className="absolute right-3 top-1/2 -translate-y-1/2"
             >
-              <X className={`w-4 h-4 ${theme === "dark" ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-600"}`} />
+              <X className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-600"}`} />
             </button>
           )}
         </div>
