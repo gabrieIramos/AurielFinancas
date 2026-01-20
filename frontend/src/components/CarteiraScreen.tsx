@@ -1,6 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { Plus, TrendingUp, TrendingDown, Trash2, Loader2, Search, X, Calendar, Calendar1, CalendarClock, CalendarCheck2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
@@ -19,7 +29,10 @@ export default function CarteiraScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState<"Todos" | "Ação" | "FII">("Todos");
+  const [filtroSearch, setFiltroSearch] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [ativoToDelete, setAtivoToDelete] = useState<PortfolioItem | null>(null);
   const { theme } = useTheme();
 
   // Form states
@@ -82,6 +95,13 @@ export default function CarteiraScreen() {
       ativo.ticker.toLowerCase().includes(searchTicker.toLowerCase()) ||
       ativo.nome.toLowerCase().includes(searchTicker.toLowerCase())
     );
+    
+    // Se for venda, mostrar apenas ativos que o usuário possui na carteira
+    if (tipoTransacao === "venda") {
+      const possuiAtivo = portfolio.some(item => item.ativo.id === ativo.id);
+      return matchTipo && matchSearch && possuiAtivo;
+    }
+    
     return matchTipo && matchSearch;
   }).slice(0, 10); // Limitar a 10 resultados
 
@@ -104,9 +124,13 @@ export default function CarteiraScreen() {
     setNovoPreco("");
   };
 
-  const portfolioFiltrado = portfolio.filter(
-    (item) => filtroTipo === "Todos" || item.ativo.tipo === filtroTipo
-  );
+  const portfolioFiltrado = portfolio.filter((item) => {
+    const matchTipo = filtroTipo === "Todos" || item.ativo.tipo === filtroTipo;
+    const matchSearch = filtroSearch === "" || 
+      item.ativo.ticker.toLowerCase().includes(filtroSearch.toLowerCase()) ||
+      item.ativo.nome.toLowerCase().includes(filtroSearch.toLowerCase());
+    return matchTipo && matchSearch;
+  });
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -153,11 +177,18 @@ export default function CarteiraScreen() {
     setDataTransacao(new Date().toISOString().split('T')[0]);
   };
 
-  const handleRemoverTransacoes = async (ativoId: number) => {
+  const handleOpenDeleteConfirm = (item: PortfolioItem) => {
+    setAtivoToDelete(item);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleRemoverTransacoes = async () => {
+    if (!ativoToDelete) return;
+    
     try {
       const response = await investmentsService.getAll();
       if (response.data) {
-        const transacoes = response.data.filter(t => t.ativoId === ativoId);
+        const transacoes = response.data.filter(t => t.ativoId === ativoToDelete.ativo.id);
         for (const transacao of transacoes) {
           await investmentsService.delete(transacao.id);
         }
@@ -165,6 +196,9 @@ export default function CarteiraScreen() {
       }
     } catch (error) {
       console.error("Erro ao remover transações:", error);
+    } finally {
+      setDeleteConfirmOpen(false);
+      setAtivoToDelete(null);
     }
   };
 
@@ -198,7 +232,7 @@ export default function CarteiraScreen() {
                 <div className={`flex rounded-lg overflow-hidden border ${theme === 'dark' ? 'border-zinc-700' : 'border-zinc-200'}`}>
                   <button
                     type="button"
-                    onClick={() => setTipoTransacao("compra")}
+                    onClick={() => { setTipoTransacao("compra"); handleClearAtivo(); }}
                     style={{
                       backgroundColor: tipoTransacao === "compra" 
                         ? "#059669" 
@@ -214,7 +248,7 @@ export default function CarteiraScreen() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setTipoTransacao("venda")}
+                    onClick={() => { setTipoTransacao("venda"); handleClearAtivo(); }}
                     style={{
                       backgroundColor: tipoTransacao === "venda" 
                         ? "#dc2626" 
@@ -451,7 +485,7 @@ export default function CarteiraScreen() {
         </div>
 
         {/* Filtros */}
-        <div className="flex gap-2 mb-6">
+        <div className="flex gap-2 mb-4">
           {["Todos", "Ação", "FII"].map((tipo) => (
             <button
               key={tipo}
@@ -466,6 +500,25 @@ export default function CarteiraScreen() {
               {tipo}
             </button>
           ))}
+        </div>
+
+        {/* Campo de Busca */}
+        <div className="relative mb-6">
+          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />
+          <Input
+            placeholder="Buscar por ticker ou nome..."
+            value={filtroSearch}
+            onChange={(e) => setFiltroSearch(e.target.value)}
+            className={`pl-10 pr-10 ${theme === "dark" ? "bg-zinc-900 border-zinc-800 text-white placeholder:text-zinc-500" : "bg-zinc-50 border-zinc-200 text-black placeholder:text-zinc-400"}`}
+          />
+          {filtroSearch && (
+            <button
+              onClick={() => setFiltroSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2"
+            >
+              <X className={`w-4 h-4 ${theme === "dark" ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-600"}`} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -516,7 +569,7 @@ export default function CarteiraScreen() {
                       </p>
                     </div>
                     <button
-                      onClick={() => handleRemoverTransacoes(item.ativo.id)}
+                      onClick={() => handleOpenDeleteConfirm(item)}
                       className={`p-1.5 rounded-full ${theme === "dark" ? "hover:bg-zinc-800" : "hover:bg-zinc-200"} transition-colors`}
                       title="Remover todas as transações deste ativo"
                     >
@@ -558,6 +611,39 @@ export default function CarteiraScreen() {
           })
         )}
       </div>
+
+      {/* Dialog de Confirmação de Exclusão */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent className={theme === "dark" ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200"}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className={theme === "dark" ? "text-white" : "text-black"}>
+              Excluir ativo da carteira?
+            </AlertDialogTitle>
+            <AlertDialogDescription className={theme === "dark" ? "text-zinc-400" : "text-zinc-600"}>
+              <span className="block mb-2">
+                Você está prestes a excluir <strong className={theme === "dark" ? "text-white" : "text-black"}>{ativoToDelete?.ativo.ticker}</strong> da sua carteira.
+              </span>
+              <span className="block p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400">
+                ⚠️ <strong>Atenção:</strong> Excluir um ativo é diferente de vender! Esta ação remove todas as transações do ativo do seu histórico. Se você vendeu suas cotas, registre uma <strong>operação de venda</strong> para manter o histórico correto.
+              </span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className={theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700" : "bg-zinc-100 border-zinc-200 text-black hover:bg-zinc-200"}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoverTransacoes}
+              style={{ backgroundColor: "#640505" }}
+              className="!text-white hover:opacity-90"
+            >
+              Excluir mesmo assim
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

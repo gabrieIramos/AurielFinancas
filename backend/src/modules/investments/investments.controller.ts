@@ -2,13 +2,17 @@ import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Requ
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InvestmentsService } from './investments.service';
+import { BrapiService } from './services/brapi.service';
 
 @ApiTags('investments')
 @Controller('investments')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class InvestmentsController {
-  constructor(private readonly investmentsService: InvestmentsService) {}
+  constructor(
+    private readonly investmentsService: InvestmentsService,
+    private readonly brapiService: BrapiService,
+  ) {}
 
   // ========== ATIVOS (tabela fixa) ==========
 
@@ -83,5 +87,13 @@ export class InvestmentsController {
   async delete(@Request() req, @Param('id') id: string) {
     await this.investmentsService.delete(id, req.user.id);
     return { message: 'Transação removida com sucesso' };
+  }
+
+  // ========== BRAPI (atualização de preços) ==========
+
+  @Post('update-prices')
+  @ApiOperation({ summary: 'Force update all asset prices from BRAPI' })
+  async updatePrices() {
+    return this.brapiService.forceUpdate();
   }
 }
