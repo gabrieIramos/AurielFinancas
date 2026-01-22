@@ -97,21 +97,21 @@ async function seedAccounts(
       name: 'C6 Bank - Cartão',
       type: AccountType.CARTAO_DE_CREDITO,
       institutionId: institutions['C6 Bank']?.id,
-      currentBalance: -850.75,
+      initialBalance: 0,
     },
     {
       key: 'interConta',
       name: 'Banco Inter - Conta',
       type: AccountType.CONTA_CORRENTE,
       institutionId: institutions['Banco Inter']?.id,
-      currentBalance: 4200,
+      initialBalance: 0,
     },
     {
       key: 'nubankCard',
       name: 'Nubank - Cartão',
       type: AccountType.CARTAO_DE_CREDITO,
       institutionId: institutions['Nubank']?.id,
-      currentBalance: -1250.32,
+      initialBalance: 0,
     },
   ];
 
@@ -129,7 +129,7 @@ async function seedAccounts(
       name: blueprint.name!,
       type: blueprint.type!,
       institutionId: blueprint.institutionId,
-      currentBalance: blueprint.currentBalance,
+      initialBalance: blueprint.initialBalance,
     });
 
     result[blueprint.key] = await accountRepo.save(created);

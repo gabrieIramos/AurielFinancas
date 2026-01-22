@@ -1,48 +1,41 @@
-import { Eye, EyeOff, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { useState } from "react";
+import { Eye, EyeOff, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { LineChart, Line, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { useTheme } from "../contexts/ThemeContext";
-
-// Mock Data
-const patrimonioData = [
-  { month: "Jan", value: 125000 },
-  { month: "Fev", value: 132000 },
-  { month: "Mar", value: 128000 },
-  { month: "Abr", value: 145000 },
-  { month: "Mai", value: 158000 },
-  { month: "Jun", value: 165000 },
-];
-
-const alocacaoData = [
-  { name: "Ações", value: 65000, color: "#10b981" },
-  { name: "FIIs", value: 45000, color: "#3b82f6" },
-  { name: "Renda Fixa", value: 35000, color: "#8b5cf6" },
-  { name: "Criptomoedas", value: 20000, color: "#f59e0b" },
-];
-
-const despesasPorCategoria = [
-  { categoria: "Alimentação", valor: 2850.50, cor: "#f59e0b" },
-  { categoria: "Transporte", valor: 1420.30, cor: "#3b82f6" },
-  { categoria: "Saúde", valor: 985.60, cor: "#10b981" },
-  { categoria: "Lazer", valor: 1650.00, cor: "#8b5cf6" },
-  { categoria: "Assinaturas", valor: 425.40, cor: "#ef4444" },
-  { categoria: "Educação", valor: 1014.00, cor: "#06b6d4" },
-];
-
-const totalGastos = despesasPorCategoria.reduce((acc, item) => acc + item.valor, 0);
-
-const resumoMensal = {
-  receitas: 15420.50,
-  gastos: totalGastos,
-  investimentos: 5000.00,
-};
+import { dashboardService, DashboardData } from "../services/dashboard.service";
 
 export default function HomeScreen() {
   const [showValues, setShowValues] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const { theme } = useTheme();
 
-  const patrimonioTotal = 165000;
-  const variacaoMes = 4.5;
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const data = await dashboardService.getDashboardData();
+      setDashboardData(data);
+    } catch (error) {
+      console.error('Erro ao carregar dados do dashboard:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Valores derivados do dashboardData
+  const userName = dashboardData?.userName || 'Usuário';
+  const patrimonioTotal = dashboardData?.patrimonioTotal || 0;
+  const variacaoMes = dashboardData?.variacaoMes || 0;
+  const resumoMensal = dashboardData?.resumoMensal || { receitas: 0, gastos: 0, investimentos: 0 };
+  const despesasPorCategoria = dashboardData?.despesasPorCategoria || [];
+  const alocacaoData = dashboardData?.alocacaoAtivos || [];
+  const patrimonioData = dashboardData?.historicoPatrimonio || [];
+  
+  const totalGastos = resumoMensal.gastos;
   const saldoLiquido = resumoMensal.receitas - resumoMensal.gastos;
 
   const formatCurrency = (value: number) => {
@@ -53,6 +46,17 @@ export default function HomeScreen() {
     }).format(value);
   };
 
+  if (loading) {
+    return (
+      <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} flex items-center justify-center`}>
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mx-auto mb-4" />
+          <p className={theme === "dark" ? "text-zinc-400" : "text-zinc-600"}>Carregando seu dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} pb-4`}>
       {/* Header */}
@@ -60,7 +64,7 @@ export default function HomeScreen() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <p className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"} text-sm`}>Bem-vindo de volta,</p>
-            <h1 className="text-2xl">Rafael Silva</h1>
+            <h1 className="text-2xl">{userName}</h1>
           </div>
           <button
             onClick={() => setShowValues(!showValues)}
@@ -81,7 +85,7 @@ export default function HomeScreen() {
               <TrendingDown className="w-4 h-4 text-red-300" />
             )}
             <span className={`text-sm ${variacaoMes >= 0 ? "text-emerald-200" : "text-red-300"}`}>
-              {variacaoMes >= 0 ? "+" : ""}{variacaoMes}% no mês
+              {variacaoMes >= 0 ? "+" : ""}{variacaoMes.toFixed(2)}% no mês
             </span>
           </div>
         </div>
@@ -171,6 +175,7 @@ export default function HomeScreen() {
         <h3 className="mb-4">Despesas por Categoria</h3>
         <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
           {showValues ? (
+            despesasPorCategoria.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={240}>
                 <BarChart data={despesasPorCategoria} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
@@ -230,6 +235,13 @@ export default function HomeScreen() {
                   })}
               </div>
             </>
+            ) : (
+              <div className={`h-[240px] flex items-center justify-center ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>
+                <div className="text-center">
+                  <p className="text-sm">Nenhuma despesa registrada nos últimos 30 dias</p>
+                </div>
+              </div>
+            )
           ) : (
             <div className={`h-[240px] flex items-center justify-center ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>
               <div className="text-center">
@@ -246,6 +258,7 @@ export default function HomeScreen() {
         <h3 className="mb-4">Alocação de Ativos</h3>
         <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
           {showValues ? (
+            alocacaoData.length > 0 ? (
             <>
               <ResponsiveContainer width="100%" height={200}>
                 <PieChart>
@@ -297,6 +310,13 @@ export default function HomeScreen() {
                 })}
               </div>
             </>
+            ) : (
+              <div className={`h-[200px] flex items-center justify-center ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>
+                <div className="text-center">
+                  <p className="text-sm">Nenhum investimento cadastrado</p>
+                </div>
+              </div>
+            )
           ) : (
             <div className={`h-[200px] flex items-center justify-center ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>
               <div className="text-center">

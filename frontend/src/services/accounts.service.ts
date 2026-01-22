@@ -9,7 +9,8 @@ export interface Account {
   name: string;
   type: AccountType;
   institutionId?: string | null;
-  currentBalance?: number;
+  initialBalance?: number;
+  calculatedBalance?: number;
 }
 
 class AccountsService {

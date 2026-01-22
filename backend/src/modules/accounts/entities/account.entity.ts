@@ -39,13 +39,20 @@ export class Account {
   type: AccountType;
 
   @Column({
-    name: 'current_balance',
+    name: 'initial_balance',
     type: 'decimal',
     precision: 15,
     scale: 2,
     default: 0,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string | null) => (value === null ? 0 : Number(value)),
+    },
   })
-  currentBalance: number;
+  initialBalance: number;
+
+  // Campo virtual para o saldo calculado (não persiste no banco)
+  calculatedBalance?: number;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   createdAt: Date;

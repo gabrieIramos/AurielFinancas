@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull } from 'typeorm';
 import Groq from 'groq-sdk';
 import { AiCategoryCache } from './entities/ai-category-cache.entity';
 import { Category } from '../categories/entities/category.entity';
@@ -86,41 +86,114 @@ export class AiService {
 
   /**
    * Limpeza via Regex para aumentar taxa de acerto do cache sem gastar IA
+   * Remove elementos variáveis que não afetam a categorização
    */
   private preClean(description: string): string {
     return description
       .toUpperCase()
-      .replace(/\d{2}\/\d{2}/g, '') // Datas
-      .replace(/\*/g, ' ')          // Asteriscos
-      .replace(/-/g, ' ')           // Hífens
-      .replace(/\d{10,}/g, '')      // Números longos
-      .replace(/\s+/g, ' ')         // Espaços duplos
+      .replace(/\d{2}\/\d{2}(\/\d{2,4})?/g, '')  // Datas (DD/MM ou DD/MM/YYYY)
+      .replace(/\*+/g, ' ')                       // Asteriscos (UBER* TRIP)
+      .replace(/-+/g, ' ')                        // Hífens
+      .replace(/\d{10,}/g, '')                    // Números longos (CNPJs, etc)
+      .replace(/\d+[A-Z]*\d+/g, '')               // Códigos alfanuméricos
+      .replace(/\b\d{4}\b/g, '')                  // 4 dígitos (final cartão)
+      .replace(/PARCELA?\s*\d+\/\d+/gi, '')       // Parcela X/Y
+      .replace(/\b(PAG|PAGTO|PAGAMENTO)\b/gi, '') // Prefixos de pagamento
+      .replace(/\bCOMP\s*\d+/gi, '')              // COMP seguido de números
+      .replace(/\s+/g, ' ')                       // Espaços múltiplos
       .trim();
   }
 
-  async categorizeTransaction(descriptionRaw: string): Promise<CategorizationResult> {
+  async categorizeTransaction(descriptionRaw: string, userId?: string): Promise<CategorizationResult> {
     const fastClean = this.preClean(descriptionRaw);
+    
+    this.logger.debug(`Categorizando: raw="${descriptionRaw}" clean="${fastClean}" userId=${userId || 'N/A'}`);
 
-    //Tentar Cache primeiro
-    const cached = await this.cacheRepository.findOne({
-      where: { descriptionClean: fastClean },
+    // 1. PRIORIDADE 1: Cache do usuário específico (se userId fornecido)
+    if (userId) {
+      const userCache = await this.cacheRepository.findOne({
+        where: { descriptionClean: fastClean, userId },
+        relations: ['category'],
+      });
+
+      this.logger.debug(`User cache search: found=${!!userCache} descClean="${fastClean}" userId="${userId}"`);
+
+      if (userCache) {
+        this.logger.log(`✅ User Cache Hit: "${fastClean}" -> ${userCache.category?.name} (user: ${userId})`);
+        await this.cacheRepository.update(userCache.id, { 
+          occurrenceCount: userCache.occurrenceCount + 1 
+        });
+        return {
+          categoryId: userCache.categoryId,
+          descriptionClean: fastClean,
+          confidence: userCache.isUserDefined ? 1.0 : Number(userCache.confidenceScore),
+        };
+      }
+    }
+
+    // 2. PRIORIDADE 2: Cache global (userId = null)
+    const globalCache = await this.cacheRepository.findOne({
+      where: { descriptionClean: fastClean, userId: IsNull() },
       relations: ['category'],
     });
 
-    if (cached) {
-      this.logger.debug(`Cache Hit: ${fastClean}`);
-      await this.cacheRepository.update(cached.id, { 
-        occurrenceCount: cached.occurrenceCount + 1 
+    this.logger.debug(`Global cache search: found=${!!globalCache} descClean="${fastClean}"`);
+
+    if (globalCache) {
+      this.logger.log(`✅ Global Cache Hit: "${fastClean}" -> ${globalCache.category?.name}`);
+      await this.cacheRepository.update(globalCache.id, { 
+        occurrenceCount: globalCache.occurrenceCount + 1 
       });
       return {
-        categoryId: cached.categoryId,
+        categoryId: globalCache.categoryId,
         descriptionClean: fastClean,
-        confidence: Number(cached.confidenceScore),
+        confidence: Number(globalCache.confidenceScore),
       };
     }
 
-    // 2. Se falhar, chamar IA
+    // 3. PRIORIDADE 3: Chamar IA
     return this.processWithAI(descriptionRaw, fastClean);
+  }
+
+  /**
+   * Salva a preferência de categoria do usuário no cache
+   * Chamado quando o usuário altera manualmente a categoria de uma transação
+   */
+  async saveUserCategoryPreference(
+    userId: string,
+    descriptionRaw: string,
+    categoryId: string,
+  ): Promise<void> {
+    const fastClean = this.preClean(descriptionRaw);
+    
+    this.logger.log(`💾 Salvando preferência: raw="${descriptionRaw}" clean="${fastClean}" userId="${userId}" categoryId="${categoryId}"`);
+
+    // Verificar se já existe cache para este usuário + descrição
+    const existing = await this.cacheRepository.findOne({
+      where: { descriptionClean: fastClean, userId },
+    });
+
+    if (existing) {
+      // Atualizar existente
+      await this.cacheRepository.update(existing.id, {
+        categoryId,
+        confidenceScore: 1.0,
+        isUserDefined: true,
+        occurrenceCount: existing.occurrenceCount + 1,
+      });
+      this.logger.log(`✅ User cache UPDATED: "${fastClean}" -> ${categoryId} (userId: ${userId})`);
+    } else {
+      // Criar novo
+      await this.cacheRepository.save({
+        descriptionClean: fastClean,
+        userId,
+        categoryId,
+        confidenceScore: 1.0,
+        isUserDefined: true,
+        occurrenceCount: 1,
+      });
+      this.logger.log(`✅ User cache CREATED: "${fastClean}" -> ${categoryId} (userId: ${userId})`);
+    }
   }
 
   private async processWithAI(raw: string, fastClean: string): Promise<CategorizationResult> {
@@ -158,14 +231,15 @@ export class AiService {
 
       const finalDescription = res.merchant.toUpperCase() || fastClean;
 
-      // 3. Salvar no Cache para futuras transações idênticas
+      // 3. Salvar no Cache GLOBAL para futuras transações idênticas
       await this.cacheRepository.upsert({
         descriptionClean: fastClean, // Chave do cache é a versão pré-limpa
+        userId: null, // Cache global
         categoryId: category.id,
         confidenceScore: res.confidence || 0.8,
         occurrenceCount: 1,
-        isGlobal: false,
-      }, ['descriptionClean']);
+        isUserDefined: false,
+      }, ['descriptionClean', 'userId']);
 
       return {
         categoryId: category.id,

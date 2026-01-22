@@ -95,8 +95,8 @@ export class TransactionsService {
 
       if (existingHashes.has(hash)) continue;
 
-      // 4. Chamar o AI para categorizar
-      const aiResult = await this.aiService.categorizeTransaction(raw.descriptionRaw);
+      // 4. Chamar o AI para categorizar (com userId para priorizar cache do usuário)
+      const aiResult = await this.aiService.categorizeTransaction(raw.descriptionRaw, userId);
 
       const transaction = this.transactionRepository.create({
         userId: userId,
@@ -189,5 +189,99 @@ export class TransactionsService {
         await this.transactionRepository.save([expense, match]);
       }
     }
+  }
+
+  /**
+   * Atualiza a categoria de uma transação
+   * Também salva no cache de preferências do usuário para futuras transações similares
+   */
+  async updateCategory(
+    userId: string,
+    transactionId: string,
+    categoryId: string,
+  ): Promise<Transaction> {
+    const transaction = await this.transactionRepository.findOne({
+      where: { id: transactionId, userId },
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transação não encontrada');
+    }
+
+    // 1. Atualizar a transação diretamente no banco
+    await this.transactionRepository.update(
+      { id: transactionId, userId },
+      {
+        categoryId,
+        categoryConfidence: 1.0,
+        needsReview: false,
+      }
+    );
+
+    // 2. Salvar preferência do usuário no cache de IA
+    // Isso garante que transações futuras com descrição similar usem esta categoria
+    await this.aiService.saveUserCategoryPreference(
+      userId,
+      transaction.descriptionRaw,
+      categoryId,
+    );
+
+    // 3. Retornar transação atualizada com relações
+    return this.transactionRepository.findOne({
+      where: { id: transactionId },
+      relations: ['category', 'account'],
+    });
+  }
+
+  /**
+   * Busca uma transação pelo ID
+   */
+  async findOne(userId: string, transactionId: string): Promise<Transaction> {
+    const transaction = await this.transactionRepository.findOne({
+      where: { id: transactionId, userId },
+      relations: ['category', 'account'],
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transação não encontrada');
+    }
+
+    return transaction;
+  }
+
+  /**
+   * Atualiza campos gerais de uma transação
+   */
+  async update(
+    userId: string,
+    transactionId: string,
+    updateData: { description?: string; amount?: number; date?: string },
+  ): Promise<Transaction> {
+    const transaction = await this.transactionRepository.findOne({
+      where: { id: transactionId, userId },
+      relations: ['category', 'account'],
+    });
+
+    if (!transaction) {
+      throw new NotFoundException('Transação não encontrada');
+    }
+
+    // Atualizar campos permitidos
+    if (updateData.description !== undefined) {
+      transaction.descriptionClean = updateData.description;
+    }
+    if (updateData.amount !== undefined) {
+      transaction.amount = updateData.amount;
+    }
+    if (updateData.date !== undefined) {
+      transaction.date = new Date(updateData.date);
+    }
+
+    await this.transactionRepository.save(transaction);
+
+    return this.transactionRepository.findOne({
+      where: { id: transactionId },
+      relations: ['category', 'account'],
+    });
   }
 }

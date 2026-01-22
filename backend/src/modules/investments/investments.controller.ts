@@ -96,4 +96,16 @@ export class InvestmentsController {
   async updatePrices() {
     return this.brapiService.forceUpdate();
   }
+
+  @Get('update-prices/failed')
+  @ApiOperation({ summary: 'Get list of assets that failed to update' })
+  async getFailedPrices() {
+    return this.brapiService.getFailedStats();
+  }
+
+  @Post('update-prices/retry')
+  @ApiOperation({ summary: 'Retry updating prices for failed assets' })
+  async retryFailedPrices() {
+    return this.brapiService.retryFailed();
+  }
 }

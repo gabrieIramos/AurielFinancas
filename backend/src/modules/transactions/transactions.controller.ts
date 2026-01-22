@@ -9,23 +9,22 @@ import {
   Query,
   Request,
   UseGuards,
+  Param,
+  Patch,
+  Put,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TransactionsService } from './transactions.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { CsvParserService, ParsedTransaction } from './services/csv-parser.service';
-import { OfxParserService } from './services/ofx-parser.service';
+import { ImportService, SupportedBankCode } from './services/import.service';
 import type { Multer } from 'multer';
-
-type BankType = 'C6' | 'INTER' | 'NUBANK';
 
 @Controller('transactions')
 @UseGuards(JwtAuthGuard)
 export class TransactionsController {
   constructor(
     private readonly transactionsService: TransactionsService,
-    private readonly csvParserService: CsvParserService,
-    private readonly ofxParserService: OfxParserService,
+    private readonly importService: ImportService,
   ) { }
 
   @Get()
@@ -44,101 +43,151 @@ export class TransactionsController {
     });
   }
 
-  @Post('import')
+  @Get(':id')
+  async findOne(@Request() req, @Param('id') id: string) {
+    return this.transactionsService.findOne(req.user.id, id);
+  }
+
+  /**
+   * Atualiza a categoria de uma transação
+   * Também salva a preferência do usuário no cache para futuras transações similares
+   */
+  @Patch(':id/category')
+  async updateCategory(
+    @Request() req,
+    @Param('id') id: string,
+    @Body('categoryId') categoryId: string,
+  ) {
+    if (!categoryId) {
+      throw new BadRequestException('categoryId é obrigatório');
+    }
+    return this.transactionsService.updateCategory(req.user.id, id, categoryId);
+  }
+
+  /**
+   * Atualiza uma transação (endpoint genérico)
+   * Se categoryId for alterado, também salva a preferência do usuário
+   */
+  @Put(':id')
+  async update(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() updateData: { categoryId?: string; description?: string; amount?: number; date?: string },
+  ) {
+    // Se está atualizando a categoria, usar o método específico que salva no cache
+    if (updateData.categoryId) {
+      return this.transactionsService.updateCategory(req.user.id, id, updateData.categoryId);
+    }
+    
+    // Para outros campos, busca e atualiza diretamente
+    return this.transactionsService.update(req.user.id, id, updateData);
+  }
+
+  /**
+   * Lista bancos/formatos suportados para importação
+   */
+  @Get('import/supported-banks')
+  getSupportedBanks() {
+    return this.importService.getSupportedBanks();
+  }
+
+  /**
+   * Preview da importação (não salva no banco)
+   * Útil para o usuário ver as transações antes de confirmar
+   */
+  @Post('import/preview')
   @UseInterceptors(FileInterceptor('file'))
-  async importTransactions(
+  async previewImport(
     @UploadedFile() file: Multer.File,
-    @Body('accountId') accountId: string,
-    @Body('bankType') bankType: BankType,
+    @Body('bankCode') bankCode: SupportedBankCode = 'AUTO',
     @Request() req,
   ) {
     if (!file) throw new BadRequestException('Arquivo não enviado');
-    if (!accountId) throw new BadRequestException('Conta não enviada');
 
     const userId = req.user?.id;
     if (!userId) throw new BadRequestException('Usuário não identificado');
 
     const fileContent = file.buffer.toString('utf-8');
-    let parsedData = [] as ParsedTransaction[];
 
     try {
-      parsedData = this.parseByBank(bankType, fileContent, file.originalname);
-
-      const normalizedTransactions = parsedData.map((item) => ({
-        date: new Date(item.date),
-        descriptionRaw: item.description,
-        amount: item.type === 'expense'
-          ? -Math.abs(item.amount)
-          : Math.abs(item.amount),
-        fitid: item.fitid,
-        additionalInfo: item.additionalInfo,
-      }));
-      
-      return await this.transactionsService.processImport(
+      const result = this.importService.processFile(fileContent, {
+        bankCode,
+        filename: file.originalname,
+        accountId: '', // Não precisa para preview
         userId,
-        accountId,
-        normalizedTransactions,
-      );
+      });
+
+      return {
+        success: result.success,
+        bankDetected: result.bankDetected,
+        summary: result.summary,
+        // Retorna apenas primeiras 50 transações no preview
+        transactions: result.transactions.slice(0, 50),
+        totalTransactions: result.transactions.length,
+        errors: result.errors,
+        warnings: result.warnings,
+      };
     } catch (error) {
       throw new BadRequestException(`Erro ao processar arquivo: ${error.message}`);
     }
   }
 
-  private parseByBank(
-    bankType: BankType,
-    content: string,
-    filename?: string,
-  ): ParsedTransaction[] {
-    if (bankType === 'C6') {
-      return this.parseC6Csv(content);
-    }
+  /**
+   * Importa transações para uma conta
+   */
+  @Post('import')
+  @UseInterceptors(FileInterceptor('file'))
+  async importTransactions(
+    @UploadedFile() file: Multer.File,
+    @Body('accountId') accountId: string,
+    @Body('bankCode') bankCode: SupportedBankCode = 'AUTO',
+    @Request() req,
+  ) {
+    if (!file) throw new BadRequestException('Arquivo não enviado');
+    if (!accountId) throw new BadRequestException('Conta não informada');
 
-    if (bankType === 'INTER' || bankType === 'NUBANK') {
-      return this.ofxParserService.parse(content);
-    }
+    const userId = req.user?.id;
+    if (!userId) throw new BadRequestException('Usuário não identificado');
 
-    const name = filename?.toLowerCase() || '';
-    if (name.endsWith('.csv')) {
-      return this.csvParserService.parse(content);
-    }
+    const fileContent = file.buffer.toString('utf-8');
 
-    if (name.endsWith('.ofx')) {
-      return this.ofxParserService.parse(content);
-    }
+    try {
+      // 1. Processar arquivo com o parser correto
+      const parseResult = this.importService.processFile(fileContent, {
+        bankCode,
+        filename: file.originalname,
+        accountId,
+        userId,
+      });
 
-    throw new BadRequestException('Banco ou formato não suportado');
-  }
-
-  private parseC6Csv(content: string): ParsedTransaction[] {
-    const lines = content.split('\n').filter(l => l.trim() !== '');
-    const dataLines = lines.slice(1);
-
-    return dataLines
-      .map(line => {
-        const cols = line.split(';').map(col => col.trim());
-        if (cols.length < 9) return null;
-
-        const [day, month, year] = cols[0].split('/');
-        if (!day || !month || !year) return null;
-
-        let amount = parseFloat(cols[8].replace('.', '').replace(',', '.'));
-        if (Number.isNaN(amount)) return null;
-
-        const description = cols[4] || 'Sem descrição';
-        const isPayment = description.toUpperCase().includes('PAGAMENTO');
-        if (!isPayment) amount = amount * -1;
-
+      if (!parseResult.success || parseResult.transactions.length === 0) {
         return {
-          date: `${year}-${month}-${day}`,
-          description,
-          amount: Math.abs(amount),
-          type: amount < 0 ? 'expense' : 'income',
-          additionalInfo: {
-            parcela: cols[5],
-            cartaoFinal: cols[2],
-          },
-        } as ParsedTransaction;
-      })
-      .filter((item): item is ParsedTransaction => item !== null);
+          success: false,
+          message: 'Nenhuma transação válida encontrada',
+          errors: parseResult.errors,
+          warnings: parseResult.warnings,
+        };
+      }
+
+      // 2. Normalizar para o formato do TransactionsService
+      const normalizedTransactions = this.importService.normalizeForImport(parseResult.transactions);
+
+      // 3. Processar importação (inclui categorização via IA)
+      const importResult = await this.transactionsService.processImport(
+        userId,
+        accountId,
+        normalizedTransactions,
+      );
+
+      return {
+        success: true,
+        bankDetected: parseResult.bankDetected,
+        ...importResult,
+        summary: parseResult.summary,
+        warnings: parseResult.warnings,
+      };
+    } catch (error) {
+      throw new BadRequestException(`Erro ao importar: ${error.message}`);
+    }
   }
 }

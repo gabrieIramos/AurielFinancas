@@ -15,8 +15,8 @@ export class CreateAccountDto {
   @IsOptional()
   institutionId?: string;
 
-  @ApiProperty({ required: false, example: 1500.00 })
+  @ApiProperty({ required: false, example: 1500.00, description: 'Saldo inicial da conta' })
   @IsOptional()
   @IsNumber()
-  currentBalance?: number;
+  initialBalance?: number;
 }

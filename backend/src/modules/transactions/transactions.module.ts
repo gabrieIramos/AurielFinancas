@@ -5,13 +5,29 @@ import { TransactionsController } from './transactions.controller';
 import { Transaction } from './entities/transaction.entity';
 import { Account } from '../accounts/entities/account.entity';
 import { AiModule } from '../ai/ai.module';
-import { CsvParserService } from './services/csv-parser.service';
-import { OfxParserService } from './services/ofx-parser.service';
+
+// Parsers
+import { 
+  C6CsvParser, 
+  InterOfxParser, 
+  NubankCsvParser, 
+  GenericOfxParser 
+} from './services/parsers';
+import { ImportService } from './services/import.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Transaction, Account]), AiModule],
   controllers: [TransactionsController],
-  providers: [TransactionsService, CsvParserService, OfxParserService],
+  providers: [
+    TransactionsService, 
+    // Parsers de banco
+    C6CsvParser,
+    InterOfxParser,
+    NubankCsvParser,
+    GenericOfxParser,
+    // Serviço de importação
+    ImportService,
+  ],
   exports: [TransactionsService],
 })
 export class TransactionsModule {}

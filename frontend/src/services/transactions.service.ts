@@ -1,6 +1,47 @@
 import { api } from './api';
 
-export type BankType = 'C6' | 'INTER' | 'NUBANK';
+// Códigos de banco suportados pelo backend
+export type SupportedBankCode = 
+  | 'C6_CSV'           // C6 Bank - Fatura cartão CSV
+  | 'INTER_OFX'        // Banco Inter - OFX
+  | 'NUBANK_CSV'       // Nubank - CSV
+  | 'GENERIC_OFX'      // Genérico OFX
+  | 'AUTO';            // Detecção automática
+
+export interface BankParserInfo {
+  bankCode: string;
+  bankName: string;
+  supportedFormats: ('csv' | 'ofx')[];
+  description: string;
+}
+
+export interface ImportSummary {
+  total: number;
+  income: number;
+  expense: number;
+  totalIncome: number;
+  totalExpense: number;
+}
+
+export interface ImportPreviewResult {
+  success: boolean;
+  bankDetected: string;
+  summary: ImportSummary;
+  transactions: any[];
+  totalTransactions: number;
+  errors: string[];
+  warnings: string[];
+}
+
+export interface ImportResult {
+  success: boolean;
+  bankDetected: string;
+  totalProcessed: number;
+  newlyImported: number;
+  duplicatesSkipped: number;
+  summary: ImportSummary;
+  warnings: string[];
+}
 
 type ApiResponse<T> = { data?: T; error?: string };
 
@@ -133,15 +174,61 @@ class TransactionsService {
     };
   }
 
-  async uploadFile(
-    file: File,
-    payload: { accountId: string; bankType: BankType; userId: string },
-  ): Promise<ApiResponse<any>> {
+  /**
+   * Lista bancos/formatos suportados para importação
+   */
+  async getSupportedBanks(): Promise<ApiResponse<BankParserInfo[]>> {
+    return api.get<BankParserInfo[]>('/transactions/import/supported-banks');
+  }
+
+  /**
+   * Preview da importação (não salva no banco)
+   */
+  async previewImport(file: File, bankCode: SupportedBankCode = 'AUTO'): Promise<ApiResponse<ImportPreviewResult>> {
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('accountId', payload.accountId);
-    formData.append('bankType', payload.bankType);
-    formData.append('userId', payload.userId);
+    formData.append('bankCode', bankCode);
+
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+    const token = localStorage.getItem('token');
+
+    try {
+      const response = await fetch(`${API_URL}/transactions/import/preview`, {
+        method: 'POST',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          error: data.message || 'Erro ao processar arquivo',
+        };
+      }
+
+      return { data };
+    } catch (error) {
+      return {
+        error: error instanceof Error ? error.message : 'Erro ao processar arquivo',
+      };
+    }
+  }
+
+  /**
+   * Importa transações para uma conta
+   */
+  async importTransactions(
+    file: File,
+    accountId: string,
+    bankCode: SupportedBankCode = 'AUTO',
+  ): Promise<ApiResponse<ImportResult>> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('accountId', accountId);
+    formData.append('bankCode', bankCode);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
     const token = localStorage.getItem('token');
@@ -169,6 +256,28 @@ class TransactionsService {
         error: error instanceof Error ? error.message : 'Erro ao importar arquivo',
       };
     }
+  }
+
+  /**
+   * Atualiza a categoria de uma transação
+   * Também salva a preferência do usuário para futuras transações similares
+   */
+  async updateCategory(transactionId: string, categoryId: string): Promise<ApiResponse<Transaction>> {
+    const response = await api.patch<BackendTransaction>(`/transactions/${transactionId}/category`, {
+      categoryId,
+    });
+    return {
+      ...response,
+      data: response.data ? normalizeTransaction(response.data) : undefined,
+    };
+  }
+
+  // Método legado (deprecated) - usar importTransactions
+  async uploadFile(
+    file: File,
+    payload: { accountId: string; bankCode: SupportedBankCode },
+  ): Promise<ApiResponse<ImportResult>> {
+    return this.importTransactions(file, payload.accountId, payload.bankCode);
   }
 }
 
