@@ -3,6 +3,7 @@ import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { InvestmentsService } from './investments.service';
 import { BrapiService } from './services/brapi.service';
+import { FixedIncomeService, CreateFixedIncomeDto, UpdateFixedIncomeDto } from './services/fixed-income.service';
 
 @ApiTags('investments')
 @Controller('investments')
@@ -12,6 +13,7 @@ export class InvestmentsController {
   constructor(
     private readonly investmentsService: InvestmentsService,
     private readonly brapiService: BrapiService,
+    private readonly fixedIncomeService: FixedIncomeService,
   ) {}
 
   // ========== ATIVOS (tabela fixa) ==========
@@ -107,5 +109,63 @@ export class InvestmentsController {
   @ApiOperation({ summary: 'Retry updating prices for failed assets' })
   async retryFailedPrices() {
     return this.brapiService.retryFailed();
+  }
+
+  // ========== RENDA FIXA ==========
+
+  @Get('fixed-income/types')
+  @ApiOperation({ summary: 'Get available fixed income types' })
+  async getFixedIncomeTypes() {
+    return this.fixedIncomeService.getAvailableTypes();
+  }
+
+  @Get('fixed-income/indexers')
+  @ApiOperation({ summary: 'Get available indexers with current rates' })
+  async getFixedIncomeIndexers() {
+    return this.fixedIncomeService.getAvailableIndexers();
+  }
+
+  @Get('fixed-income/portfolio')
+  @ApiOperation({ summary: 'Get consolidated fixed income portfolio with yield calculations' })
+  async getFixedIncomePortfolio(@Request() req) {
+    return this.fixedIncomeService.getPortfolio(req.user.id);
+  }
+
+  @Get('fixed-income')
+  @ApiOperation({ summary: 'List all fixed income investments' })
+  async findAllFixedIncome(@Request() req, @Query('active') active?: string) {
+    if (active === 'true') {
+      return this.fixedIncomeService.findActive(req.user.id);
+    }
+    return this.fixedIncomeService.findAll(req.user.id);
+  }
+
+  @Get('fixed-income/:id')
+  @ApiOperation({ summary: 'Get fixed income investment by ID' })
+  async findOneFixedIncome(@Request() req, @Param('id') id: string) {
+    return this.fixedIncomeService.findOne(id, req.user.id);
+  }
+
+  @Post('fixed-income')
+  @ApiOperation({ summary: 'Create new fixed income investment' })
+  async createFixedIncome(@Request() req, @Body() createDto: CreateFixedIncomeDto) {
+    return this.fixedIncomeService.create(req.user.id, createDto);
+  }
+
+  @Put('fixed-income/:id')
+  @ApiOperation({ summary: 'Update fixed income investment' })
+  async updateFixedIncome(
+    @Request() req,
+    @Param('id') id: string,
+    @Body() updateDto: UpdateFixedIncomeDto,
+  ) {
+    return this.fixedIncomeService.update(id, req.user.id, updateDto);
+  }
+
+  @Delete('fixed-income/:id')
+  @ApiOperation({ summary: 'Delete fixed income investment' })
+  async deleteFixedIncome(@Request() req, @Param('id') id: string) {
+    await this.fixedIncomeService.delete(id, req.user.id);
+    return { message: 'Investimento de renda fixa removido com sucesso' };
   }
 }

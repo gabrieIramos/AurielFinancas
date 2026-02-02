@@ -18,10 +18,14 @@ async function bootstrap() {
     }),
   );
 
-  // CORS
+  // CORS - Configurado para suportar BetterAuth e cookies
   app.enableCors({
-    origin: process.env.NODE_ENV === 'development' ? 'http://localhost:5172' : process.env.CORS_ORIGIN,
+    origin: process.env.NODE_ENV === 'development' 
+      ? ['http://localhost:5172', 'http://localhost:5173', 'http://localhost:3000'] 
+      : process.env.FRONTEND_URL,
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
   });
 
   // Swagger Documentation

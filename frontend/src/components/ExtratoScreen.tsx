@@ -346,7 +346,7 @@ export default function ExtratoScreen() {
                             )}
                           </div>
                           <div>
-                            <p className={theme === "dark" ? "text-white" : "text-black"}>{transacao.description}</p>
+                            <p className={theme === "dark" ? "text-white" : "text-black"}>{transacao.descriptionRaw}</p>
                             <p className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"} text-sm`}>
                               {transacao.category?.name || "Sem categoria"}
                             </p>
@@ -416,7 +416,7 @@ export default function ExtratoScreen() {
                   </SelectTrigger>
                   <SelectContent className={theme === "dark" ? "bg-zinc-800 border-zinc-700" : "bg-white"}>
                     {categories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id.toString()}>
+                      <SelectItem className={theme === "dark" ? "text-white" : "text-black"} key={cat.id} value={cat.id.toString()}>
                         {cat.name}
                       </SelectItem>
                     ))}
@@ -446,7 +446,7 @@ export default function ExtratoScreen() {
               className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
             >
               {savingCategory ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-4 h-4 animate-spin flex items-center justify-center" />
               ) : (
                 "Salvar"
               )}
@@ -463,7 +463,7 @@ export default function ExtratoScreen() {
               <FileUp className="w-5 h-5" />
               Importar Transações
             </DialogTitle>
-          </DialogHeader>
+          </DialogHeader> 
 
           <div className="space-y-4 py-4">
             {/* Resultado da importação */}
@@ -543,9 +543,9 @@ export default function ExtratoScreen() {
                   <SelectValue placeholder="Selecione o banco" />
                 </SelectTrigger>
                 <SelectContent className={theme === "dark" ? "bg-zinc-800 border-zinc-700" : "bg-white"}>
-                  <SelectItem value="AUTO">🔄 Detectar automaticamente</SelectItem>
+                  <SelectItem value="AUTO">Detectar automaticamente</SelectItem>
                   {supportedBanks.map((bank) => (
-                    <SelectItem key={bank.bankCode} value={bank.bankCode}>
+                    <SelectItem className="text-white" key={bank.bankCode} value={bank.bankCode}>
                       {bank.bankName} ({bank.supportedFormats.join(", ").toUpperCase()})
                     </SelectItem>
                   ))}
@@ -565,7 +565,7 @@ export default function ExtratoScreen() {
                 </SelectTrigger>
                 <SelectContent className={theme === "dark" ? "bg-zinc-800 border-zinc-700" : "bg-white"}>
                   {accounts.map((account) => (
-                    <SelectItem key={account.id} value={account.id}>
+                    <SelectItem className="text-white" key={account.id} value={account.id}>
                       {account.name}
                     </SelectItem>
                   ))}
@@ -586,7 +586,7 @@ export default function ExtratoScreen() {
               <button
                 onClick={handleImport}
                 disabled={importing || !importFile || !importAccountId}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
               >
                 {importing ? (
                   <>

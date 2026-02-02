@@ -4,9 +4,11 @@ import { PassportModule } from '@nestjs/passport';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { BetterAuthController } from './better-auth.controller';
 import { UsersModule } from '../users/users.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { LocalStrategy } from './strategies/local.strategy';
+import { BetterAuthGuard } from './guards/better-auth.guard';
 
 @Module({
   imports: [
@@ -22,7 +24,8 @@ import { LocalStrategy } from './strategies/local.strategy';
       inject: [ConfigService],
     }),
   ],
-  controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, LocalStrategy],
+  controllers: [AuthController, BetterAuthController],
+  providers: [AuthService, JwtStrategy, LocalStrategy, BetterAuthGuard],
+  exports: [BetterAuthGuard],
 })
 export class AuthModule {}

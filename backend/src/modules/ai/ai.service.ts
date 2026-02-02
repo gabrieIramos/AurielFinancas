@@ -70,6 +70,184 @@ export class AiService {
   private groq: Groq;
   private isConfigured: boolean;
 
+  /**
+   * Mapeamento local de palavras-chave para categorias
+   * Prioridade: verificado ANTES de chamar a IA (economia de tokens)
+   */
+  private readonly categoryKeywords: Record<string, string[]> = {
+    // Alimentação
+    'Alimentação': [
+      'IFOOD', 'UBER EATS', 'RAPPI', 'ZDELIVERY', 'AIQFOME',
+      'MCDONALDS', 'MCDONALD', 'BURGER KING', 'BK ', 'SUBWAY', 'KFC',
+      'STARBUCKS', 'OUTBACK', 'MADERO', 'SPOLETO', 'GIRAFFAS', 'HABIBS', 'HABIB',
+      'PIZZA HUT', 'DOMINOS', 'DOMINO', 'PIZZARIA',
+      'RESTAURANTE', 'REST ', 'LANCHONETE', 'LANCH ', 'PADARIA', 'PAD ',
+      'SORVETERIA', 'SORVETE', 'AÇAI', 'ACAI', 'DOCERIA', 'CONFEITARIA',
+      'CAFETERIA', 'CAFE ', 'CAFÉ', 'BARZINHO', 'BAR ', 'BOTECO', 'PUB ',
+      'CHURRASCARIA', 'CHURRAS', 'RODIZIO', 'BUFFET',
+      'SUSHI', 'JAPONÊS', 'JAPONES', 'CHINES', 'CHINÊS', 'MEXICANO',
+      'CANTINA', 'SELF SERVICE', 'PRATO FEITO', 'PF ',
+    ],
+
+    // Transporte
+    'Transporte': [
+      'UBER', '99 ', '99APP', '99POP', 'CABIFY', 'INDRIVE', 'LYFT',
+      'TAXI', 'TÁXI', 'MOTO ', 'MOTOFRETE',
+      'POSTO', 'IPIRANGA', 'SHELL', 'PETROBRAS', 'BR DISTRIBUIDORA', 'ALE ',
+      'COMBUSTIVEL', 'COMBUSTÍVEL', 'GASOLINA', 'ETANOL', 'DIESEL', 'GNV',
+      'ESTACIONAMENTO', 'ESTAPAR', 'PARK', 'PARKING',
+      'PEDAGIO', 'PEDÁGIO', 'CONECTCAR', 'SEMPARAR', 'VELOE', 'MOVE MAIS',
+      'METRO', 'METRÔ', 'BILHETE UNICO', 'VEM ', 'RIOCARD', 'SPTRANS',
+      'ONIBUS', 'ÔNIBUS', 'VIACAO', 'VIAÇÃO',
+    ],
+
+    // Mercado
+    'Mercado': [
+      'CARREFOUR', 'EXTRA', 'PAO DE ACUCAR', 'PÃO DE AÇÚCAR', 'ASSAI', 'ASSAÍ',
+      'ATACADAO', 'ATACADÃO', 'MAKRO', 'SAMS CLUB', 'SAM\'S CLUB', 'COSTCO',
+      'BIG ', 'WALMART', 'SUPERMARKET', 'SUPERMERCADO', 'MERCADO',
+      'HIPER', 'HIPERMERCADO', 'MINI MERCADO', 'MINIMERCADO', 'MERCEARIA',
+      'HORTIFRUTI', 'SACOLAO', 'SACOLÃO', 'FEIRA', 'QUITANDA',
+      'CASA DE CARNES', 'ACOUGUE', 'AÇOUGUE', 'PEIXARIA',
+      'DIA ', 'ALDI', 'LIDL', 'NATURAL DA TERRA', 'ZONA SUL', 'PREZUNIC',
+      'GUANABARA', 'MUNDIAL', 'PRINCESA', 'BARBOSA', 'SONDA', 'HIROTA',
+    ],
+
+    // Assinaturas
+    'Assinaturas': [
+      'NETFLIX', 'SPOTIFY', 'AMAZON PRIME', 'PRIME VIDEO', 'DISNEY', 'HBO',
+      'GLOBOPLAY', 'PARAMOUNT', 'APPLE TV', 'YOUTUBE PREMIUM', 'DEEZER', 'TIDAL',
+      'CRUNCHYROLL', 'STAR+', 'DISCOVERY', 'TELECINE',
+      'XBOX GAME PASS', 'PLAYSTATION', 'PSN', 'STEAM', 'EPIC GAMES', 'EA PLAY',
+      'ADOBE', 'MICROSOFT 365', 'OFFICE 365', 'GOOGLE ONE', 'ICLOUD', 'DROPBOX',
+      'NOTION', 'CANVA', 'FIGMA', 'CHATGPT', 'OPENAI',
+      'AMAZON MUSIC', 'APPLE MUSIC', 'AUDIBLE', 'KINDLE UNLIMITED',
+      'GYMPASS', 'TOTALPASS', 'WELLHUB',
+    ],
+
+    // Contas e Serviços
+    'Contas e Serviços': [
+      'ENEL', 'CPFL', 'CEMIG', 'COELBA', 'CELPE', 'COPEL', 'LIGHT', 'ELETROPAULO',
+      'ENERGIA', 'ELETRICA', 'ELÉTRICA', 'LUZ ',
+      'SABESP', 'CEDAE', 'COPASA', 'SANEPAR', 'EMBASA', 'CAGECE',
+      'AGUA', 'ÁGUA', 'SANEAMENTO',
+      'COMGAS', 'COMGÁS', 'CEG', 'NATURGY', 'GAS NATURAL', 'GÁS',
+      'CLARO', 'VIVO', 'TIM ', 'OI ', 'NEXTEL', 'ALGAR',
+      'TELEFONE', 'CELULAR', 'MOVEL', 'MÓVEL', 'TELECOM',
+      'NET ', 'SKY', 'INTERNET', 'BANDA LARGA', 'FIBRA',
+      'CONDOMINIO', 'CONDOMÍNIO', 'COND ', 'IPTU', 'ALUGUEL',
+    ],
+
+    // Saúde
+    'Saúde': [
+      'FARMACIA', 'FARMÁCIA', 'DROGARIA', 'DROGASIL', 'DROGA RAIA', 'RAIA',
+      'PACHECO', 'SAO PAULO', 'PAGUE MENOS', 'EXTRAFARMA', 'PANVEL', 'NISSEI',
+      'ULTRAFARMA', 'DROGAL', 'ONOFRE',
+      'HOSPITAL', 'HOSP ', 'CLINICA', 'CLÍNICA', 'CONSULTORIO', 'CONSULTÓRIO',
+      'MEDICO', 'MÉDICO', 'DR.', 'DRA.', 'DOUTOR', 'DOUTORA',
+      'DENTISTA', 'ODONTO', 'ORTODONTIA', 'DENTAL',
+      'LABORATORIO', 'LABORATÓRIO', 'LAB ', 'EXAME', 'DIAGNÓSTICO',
+      'UNIMED', 'AMIL', 'BRADESCO SAUDE', 'SULAMERICA', 'NOTREDAME', 'HAPVIDA',
+      'PSICÓLOGO', 'PSICOLOGO', 'PSIQUIATRA', 'TERAPIA', 'TERAPEUTA',
+      'ACADEMIA', 'SMART FIT', 'BLUEFIT', 'BODYTECH', 'BIO RITMO', 'SELFIT',
+      'CROSSFIT', 'PILATES', 'YOGA', 'NATAÇÃO', 'NATACAO',
+      'OTICA', 'ÓTICA', 'OTICAS', 'ÓTICAS', 'OCULOS', 'ÓCULOS', 'LENTES',
+    ],
+
+    // Compras
+    'Compras': [
+      'MERCADO LIVRE', 'MERCADOLIVRE', 'MELI ', 'ML ',
+      'AMAZON', 'AMZN', 'SHOPEE', 'ALIEXPRESS', 'SHEIN', 'WISH', 'TEMU',
+      'MAGAZINE LUIZA', 'MAGALU', 'CASAS BAHIA', 'PONTO FRIO', 'EXTRA.COM',
+      'AMERICANAS', 'SUBMARINO', 'SHOPTIME', 'LOJAS AMERICANAS',
+      'KABUM', 'PICHAU', 'TERABYTE', 'INFORMATICA', 'INFORMÁTICA',
+      'RENNER', 'C&A', 'CEA ', 'RIACHUELO', 'MARISA', 'HERING',
+      'ZARA', 'FOREVER 21', 'H&M', 'FARM', 'ANIMALE', 'SHOULDER',
+      'CENTAURO', 'NETSHOES', 'DECATHLON', 'NIKE', 'ADIDAS', 'PUMA',
+      'LEROY MERLIN', 'TELHA NORTE', 'C&C', 'CASA SHOW', 'TUMELERO',
+      'KALUNGA', 'PAPELARIA', 'LIVRARIA', 'SARAIVA', 'CULTURA',
+      'JOALHERIA', 'VIVARA', 'PANDORA', 'MONTE CARLO', 'HSTERN',
+      'HAVAIANAS', 'MELISSA', 'AREZZO', 'SCHUTZ', 'DEMOCRATA',
+      'TOK STOK', 'TOKSTOK', 'ETNA', 'CAMICADO', 'SPICY', 'MOBLY',
+    ],
+
+    // Transferências
+    'Transferências': [
+      'PIX', 'TED', 'DOC', 'TRANSFERENCIA', 'TRANSFERÊNCIA', 'TRANSF ',
+      'ENVIO', 'RECEBIMENTO', 'P2P',
+      'NUBANK', 'INTER', 'C6 BANK', 'NEXT', 'ORIGINAL', 'NEON', 'PICPAY',
+      'MERCADO PAGO', 'PAGBANK', 'PAGSEGURO', 'STONE', 'CIELO', 'REDE',
+      'ITAU', 'ITAÚ', 'BRADESCO', 'SANTANDER', 'BB ', 'BANCO DO BRASIL', 'CAIXA',
+    ],
+
+    // Lazer
+    'Lazer': [
+      'CINEMA', 'CINEMARK', 'CINEPOLIS', 'UCI', 'KINOPLEX', 'CINESYSTEM',
+      'INGRESSO', 'SYMPLA', 'EVENTIM', 'TICKET', 'ENTRADA',
+      'TEATRO', 'SHOW', 'CONCERT', 'FESTIVAL', 'EVENTO',
+      'PARQUE', 'DIVERSAO', 'DIVERSÃO', 'ENTRETENIMENTO',
+      'BOLICHE', 'SINUCA', 'BILHAR', 'ESCAPE ROOM', 'LASER TAG',
+      'MUSEU', 'EXPOSICAO', 'EXPOSIÇÃO', 'GALERIA',
+      'ZOOLOGICO', 'ZOOLÓGICO', 'AQUARIO', 'AQUÁRIO',
+    ],
+
+    // Viagens
+    'Viagens': [
+      'HOTEL', 'POUSADA', 'HOSTEL', 'RESORT', 'HOSPEDAGEM',
+      'AIRBNB', 'BOOKING', 'EXPEDIA', 'TRIVAGO', 'HOTELS.COM', 'DECOLAR',
+      'LATAM', 'GOL', 'AZUL', 'AVIANCA', 'TAP', 'AMERICAN AIRLINES', 'COPA',
+      'PASSAGEM', 'PASSAGENS', 'AEREO', 'AÉREO', 'VOAR', 'VOO',
+      'ALUGUEL DE CARRO', 'RENT A CAR', 'LOCALIZA', 'MOVIDA', 'UNIDAS', 'HERTZ',
+      'RODOVIARIA', 'RODOVIÁRIO', 'ONIBUS VIAGEM',
+      'CRUZEIRO', 'MSC', 'COSTA', 'ROYAL CARIBBEAN',
+      'CVC', 'HURB', 'MAXMILHAS', 'SUBMARINO VIAGENS', '123MILHAS',
+    ],
+
+    // Educação
+    'Educação': [
+      'ESCOLA', 'COLEGIO', 'COLÉGIO', 'FACULDADE', 'UNIVERSIDADE', 'UNIV ',
+      'CURSO', 'CURSINHO', 'AULA', 'PROFESSOR', 'MENTORIA',
+      'UDEMY', 'COURSERA', 'ALURA', 'ROCKETSEAT', 'ORIGAMID', 'DIO',
+      'DESCOMPLICA', 'ESTRATEGIA', 'GRAN CURSOS', 'QCONCURSOS',
+      'LIVRO', 'LIVRARIA', 'AMAZON KINDLE', 'ESTANTE VIRTUAL',
+      'MATERIAL ESCOLAR', 'APOSTILA', 'CADERNO',
+      'DUOLINGO', 'BABBEL', 'CAMBLY', 'OPEN ENGLISH', 'WIZARD', 'CCAA', 'FISK',
+      'MBA', 'POS GRADUACAO', 'PÓS-GRADUAÇÃO', 'MESTRADO', 'DOUTORADO',
+    ],
+
+    // Pets
+    'Pets': [
+      'PET', 'PETSHOP', 'PET SHOP', 'PETZ', 'COBASI', 'PETLAND', 'ANIMALE',
+      'RACAO', 'RAÇÃO', 'PET FOOD',
+      'VETERINARIO', 'VETERINÁRIO', 'VET ', 'CLINICA VET', 'HOSPITAL VET',
+      'BANHO E TOSA', 'GROOMING', 'DOG', 'CAT', 'CAES', 'GATOS',
+    ],
+
+    // Seguros
+    'Seguros': [
+      'SEGURO', 'SEGUROS', 'SEGURADORA',
+      'PORTO SEGURO', 'BRADESCO SEGUROS', 'ITAU SEGUROS', 'SULAMERICA',
+      'AZUL SEGUROS', 'LIBERTY', 'TOKIO MARINE', 'MAPFRE', 'ALLIANZ', 'ZURICH',
+      'VIDA ', 'AUTO ', 'RESIDENCIAL', 'VIAGEM',
+    ],
+
+    // Impostos
+    'Impostos': [
+      'IPVA', 'IPTU', 'IR ', 'IRPF', 'IMPOSTO', 'TRIBUTO', 'TAXA',
+      'DETRAN', 'LICENCIAMENTO', 'MULTA', 'INFRAÇÃO', 'INFRACAO',
+      'DARF', 'DAS ', 'SIMPLES NACIONAL', 'INSS', 'FGTS',
+      'RECEITA FEDERAL', 'PREFEITURA', 'SEFAZ',
+    ],
+
+    // Presentes
+    'Presentes': [
+      'PRESENTE', 'GIFT', 'LEMBRANCA', 'LEMBRANÇA',
+      'FLORES', 'FLORICULTURA', 'FLORIST', 'BOUQUET',
+      'BOMBONIERE', 'CHOCOLATE', 'DOCE', 'CESTA',
+      'CARTAO PRESENTE', 'GIFT CARD', 'VALE PRESENTE',
+    ],
+  };
+
   constructor(
     private configService: ConfigService,
     @InjectRepository(AiCategoryCache)
@@ -104,6 +282,26 @@ export class AiService {
       .trim();
   }
 
+  /**
+   * Tenta categorizar localmente usando a lista de palavras-chave
+   * Retorna null se não encontrar match
+   */
+  private async matchLocalCategory(descriptionClean: string): Promise<{ categoryName: string; confidence: number } | null> {
+    const upperDesc = descriptionClean.toUpperCase();
+
+    for (const [categoryName, keywords] of Object.entries(this.categoryKeywords)) {
+      for (const keyword of keywords) {
+        // Match exato ou como parte de palavra
+        if (upperDesc.includes(keyword)) {
+          this.logger.debug(`📋 Local match: "${keyword}" -> ${categoryName}`);
+          return { categoryName, confidence: 0.95 };
+        }
+      }
+    }
+
+    return null;
+  }
+
   async categorizeTransaction(descriptionRaw: string, userId?: string): Promise<CategorizationResult> {
     const fastClean = this.preClean(descriptionRaw);
     
@@ -115,8 +313,6 @@ export class AiService {
         where: { descriptionClean: fastClean, userId },
         relations: ['category'],
       });
-
-      this.logger.debug(`User cache search: found=${!!userCache} descClean="${fastClean}" userId="${userId}"`);
 
       if (userCache) {
         this.logger.log(`✅ User Cache Hit: "${fastClean}" -> ${userCache.category?.name} (user: ${userId})`);
@@ -137,8 +333,6 @@ export class AiService {
       relations: ['category'],
     });
 
-    this.logger.debug(`Global cache search: found=${!!globalCache} descClean="${fastClean}"`);
-
     if (globalCache) {
       this.logger.log(`✅ Global Cache Hit: "${fastClean}" -> ${globalCache.category?.name}`);
       await this.cacheRepository.update(globalCache.id, { 
@@ -151,7 +345,35 @@ export class AiService {
       };
     }
 
-    // 3. PRIORIDADE 3: Chamar IA
+    // 3. PRIORIDADE 3: Match local (lista de palavras-chave)
+    const localMatch = await this.matchLocalCategory(fastClean);
+    if (localMatch) {
+      const category = await this.categoryRepository.findOne({
+        where: { name: localMatch.categoryName },
+      });
+
+      if (category) {
+        this.logger.log(`📋 Local Match: "${fastClean}" -> ${category.name}`);
+        
+        // Salvar no cache global para acelerar próximas consultas
+        await this.cacheRepository.upsert({
+          descriptionClean: fastClean,
+          userId: null,
+          categoryId: category.id,
+          confidenceScore: localMatch.confidence,
+          occurrenceCount: 1,
+          isUserDefined: false,
+        }, ['descriptionClean', 'userId']);
+
+        return {
+          categoryId: category.id,
+          descriptionClean: fastClean,
+          confidence: localMatch.confidence,
+        };
+      }
+    }
+
+    // 4. PRIORIDADE 4: Chamar IA (último recurso)
     return this.processWithAI(descriptionRaw, fastClean);
   }
 
@@ -202,44 +424,56 @@ export class AiService {
     const categories = await this.categoryRepository.find();
     const categoryNames = categories.map(c => c.name);
 
-    const prompt = `Analise a transação: "${raw}"
-    Categorias aceitas: [${categoryNames.join(', ')}]
-    
-    Responda EXATAMENTE no formato JSON:
-    {
-      "merchant": "Nome limpo do estabelecimento",
-      "category": "Nome da categoria idêntico à lista",
-      "confidence": 0.9
-    }`;
+    // Prompt ENXUTO - a maioria das transações conhecidas já foi tratada pelo match local
+    const prompt = `Categorize esta transação brasileira: "${raw}"
+
+Categorias: [${categoryNames.join(', ')}]
+
+Regras:
+- Restaurante/Delivery/Bar → Alimentação
+- Uber/99/Combustível → Transporte  
+- Netflix/Spotify/Streaming → Assinaturas
+- Supermercado → Mercado
+- Luz/Água/Telefone → Contas e Serviços
+- Farmácia/Médico/Academia → Saúde
+- Loja/E-commerce → Compras
+- PIX/TED → Transferências
+- Desconhecido → Outras
+
+JSON: {"merchant":"NOME","category":"Categoria","confidence":0.9}`;
 
     try {
       const completion = await this.groq.chat.completions.create({
         messages: [
-          { role: 'system', content: 'Você é um classificador de finanças. Responda apenas JSON.' },
+          { 
+            role: 'system', 
+            content: 'Classificador especializado financeiro BR. Retorne APENAS JSON.' 
+          },
           { role: 'user', content: prompt }
         ],
-        model: 'llama-3.1-8b-instant', // Mais rápido e barato para JSON simples
+        model: 'llama-3.1-8b-instant',
         response_format: { type: 'json_object' },
-        temperature: 0.1, // Menos criatividade, mais precisão
+        temperature: 0.1,
       });
 
       const res = JSON.parse(completion.choices[0].message.content);
       
-      // Valida se a categoria retornada existe no seu banco
-      let category = categories.find(c => c.name.toLowerCase() === res.category.toLowerCase());
+      let category = categories.find(c => c.name.toLowerCase() === res.category?.toLowerCase());
       if (!category) category = categories.find(c => c.name === 'Outras');
 
-      const finalDescription = res.merchant.toUpperCase() || fastClean;
+      const finalDescription = res.merchant?.toUpperCase() || fastClean;
 
-      // 3. Salvar no Cache GLOBAL para futuras transações idênticas
+      // Salvar no cache global
       await this.cacheRepository.upsert({
-        descriptionClean: fastClean, // Chave do cache é a versão pré-limpa
-        userId: null, // Cache global
+        descriptionClean: fastClean,
+        userId: null,
         categoryId: category.id,
         confidenceScore: res.confidence || 0.8,
         occurrenceCount: 1,
         isUserDefined: false,
       }, ['descriptionClean', 'userId']);
+
+      this.logger.log(`🤖 IA: "${raw}" -> ${category.name} (${(res.confidence * 100).toFixed(0)}%)`);
 
       return {
         categoryId: category.id,
@@ -251,6 +485,202 @@ export class AiService {
       this.logger.error(`AI Error: ${error.message}`);
       return this.fallback(fastClean);
     }
+  }
+
+  /**
+   * Categoriza múltiplas transações em lote (mais eficiente)
+   * Agrupa até 10 transações por chamada à IA
+   */
+  async categorizeTransactionsBatch(
+    transactions: Array<{ descriptionRaw: string; index: number }>,
+    userId?: string,
+  ): Promise<Map<number, CategorizationResult>> {
+    const results = new Map<number, CategorizationResult>();
+    const toProcess: Array<{ descriptionRaw: string; fastClean: string; index: number }> = [];
+    const categories = await this.categoryRepository.find();
+
+    // Primeiro, tentar resolver pelo cache e match local
+    for (const tx of transactions) {
+      const fastClean = this.preClean(tx.descriptionRaw);
+
+      // 1. Tentar cache do usuário
+      if (userId) {
+        const userCache = await this.cacheRepository.findOne({
+          where: { descriptionClean: fastClean, userId },
+        });
+        if (userCache) {
+          results.set(tx.index, {
+            categoryId: userCache.categoryId,
+            descriptionClean: fastClean,
+            confidence: userCache.isUserDefined ? 1.0 : Number(userCache.confidenceScore),
+          });
+          continue;
+        }
+      }
+
+      // 2. Tentar cache global
+      const globalCache = await this.cacheRepository.findOne({
+        where: { descriptionClean: fastClean, userId: IsNull() },
+      });
+      if (globalCache) {
+        results.set(tx.index, {
+          categoryId: globalCache.categoryId,
+          descriptionClean: fastClean,
+          confidence: Number(globalCache.confidenceScore),
+        });
+        continue;
+      }
+
+      // 3. Tentar match local
+      const localMatch = await this.matchLocalCategory(fastClean);
+      if (localMatch) {
+        const category = categories.find(c => c.name === localMatch.categoryName);
+        if (category) {
+          // Salvar no cache global
+          await this.cacheRepository.upsert({
+            descriptionClean: fastClean,
+            userId: null,
+            categoryId: category.id,
+            confidenceScore: localMatch.confidence,
+            occurrenceCount: 1,
+            isUserDefined: false,
+          }, ['descriptionClean', 'userId']);
+
+          results.set(tx.index, {
+            categoryId: category.id,
+            descriptionClean: fastClean,
+            confidence: localMatch.confidence,
+          });
+          continue;
+        }
+      }
+
+      // 4. Adicionar à lista para processar via IA
+      toProcess.push({ ...tx, fastClean });
+    }
+
+    this.logger.log(`📊 Batch: ${results.size} resolvidos localmente, ${toProcess.length} para IA`);
+
+    // Se não há nada para processar via IA, retornar
+    if (toProcess.length === 0) {
+      return results;
+    }
+
+    // Processar em lotes de 10
+    const BATCH_SIZE = 10;
+    for (let i = 0; i < toProcess.length; i += BATCH_SIZE) {
+      const batch = toProcess.slice(i, i + BATCH_SIZE);
+      const batchResults = await this.processWithAIBatch(batch);
+      
+      for (const [index, result] of batchResults) {
+        results.set(index, result);
+      }
+    }
+
+    return results;
+  }
+
+  /**
+   * Processa um lote de transações via IA (prompt enxuto)
+   */
+  private async processWithAIBatch(
+    transactions: Array<{ descriptionRaw: string; fastClean: string; index: number }>,
+  ): Promise<Map<number, CategorizationResult>> {
+    const results = new Map<number, CategorizationResult>();
+
+    if (!this.isConfigured) {
+      for (const tx of transactions) {
+        results.set(tx.index, await this.fallback(tx.fastClean));
+      }
+      return results;
+    }
+
+    const categories = await this.categoryRepository.find();
+    const categoryNames = categories.map(c => c.name);
+
+    const transactionsList = transactions
+      .map((tx, i) => `${i + 1}. "${tx.descriptionRaw}"`)
+      .join('\n');
+
+    // Prompt ENXUTO para batch
+    const prompt = `Categorize estas transações BR:
+${transactionsList}
+
+Categorias: [${categoryNames.join(', ')}]
+
+Regras rápidas:
+- Restaurante/Delivery → Alimentação
+- Uber/99/Combustível → Transporte
+- Netflix/Spotify → Assinaturas
+- Supermercado → Mercado
+- Luz/Água/Telefone → Contas e Serviços
+- Farmácia/Médico → Saúde
+- Loja/E-commerce → Compras
+- PIX/TED → Transferências
+- Desconhecido → Outras
+
+JSON: {"results":[{"index":1,"merchant":"NOME","category":"Cat","confidence":0.9}]}`;
+
+    try {
+      const completion = await this.groq.chat.completions.create({
+        messages: [
+          { 
+            role: 'system', 
+            content: 'Classificador financeiro BR. Retorne APENAS JSON.' 
+          },
+          { role: 'user', content: prompt }
+        ],
+        model: 'llama-3.1-8b-instant',
+        response_format: { type: 'json_object' },
+        temperature: 0.1,
+        max_tokens: 500,
+      });
+
+      const res = JSON.parse(completion.choices[0].message.content);
+      
+      for (const item of res.results || []) {
+        const tx = transactions[item.index - 1];
+        if (!tx) continue;
+
+        let category = categories.find(c => c.name.toLowerCase() === item.category?.toLowerCase());
+        if (!category) category = categories.find(c => c.name === 'Outras');
+
+        const finalDescription = item.merchant?.toUpperCase() || tx.fastClean;
+
+        // Salvar no cache global
+        await this.cacheRepository.upsert({
+          descriptionClean: tx.fastClean,
+          userId: null,
+          categoryId: category.id,
+          confidenceScore: item.confidence || 0.8,
+          occurrenceCount: 1,
+          isUserDefined: false,
+        }, ['descriptionClean', 'userId']);
+
+        results.set(tx.index, {
+          categoryId: category.id,
+          descriptionClean: finalDescription,
+          confidence: item.confidence || 0.8,
+        });
+      }
+
+      // Fallback para transações não retornadas
+      for (const tx of transactions) {
+        if (!results.has(tx.index)) {
+          results.set(tx.index, await this.fallback(tx.fastClean));
+        }
+      }
+
+      this.logger.log(`🤖 IA batch: ${transactions.length} transações categorizadas`);
+
+    } catch (error) {
+      this.logger.error(`AI Batch Error: ${error.message}`);
+      for (const tx of transactions) {
+        results.set(tx.index, await this.fallback(tx.fastClean));
+      }
+    }
+
+    return results;
   }
 
   private async fallback(clean: string): Promise<CategorizationResult> {

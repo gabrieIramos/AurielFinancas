@@ -86,36 +86,68 @@ export class TransactionsService {
 
     const existingHashes = new Set(existingTransactions.map(t => t.transactionHash));
 
+    // 3. Filtrar transações novas (não duplicadas)
+    const newRawTransactions: Array<{
+      raw: typeof rawTransactions[0];
+      hash: string;
+      index: number;
+    }> = [];
+
+    for (let i = 0; i < rawTransactions.length; i++) {
+      const hash = hashes[i];
+      if (!existingHashes.has(hash)) {
+        newRawTransactions.push({
+          raw: rawTransactions[i],
+          hash,
+          index: i,
+        });
+        existingHashes.add(hash);
+      }
+    }
+
+    if (newRawTransactions.length === 0) {
+      return {
+        totalProcessed: rawTransactions.length,
+        newlyImported: 0,
+        duplicatesSkipped: rawTransactions.length,
+      };
+    }
+
+    // 4. Categorizar em lote usando IA (mais eficiente)
+    const categorizationResults = await this.aiService.categorizeTransactionsBatch(
+      newRawTransactions.map(t => ({
+        descriptionRaw: t.raw.descriptionRaw,
+        index: t.index,
+      })),
+      userId,
+    );
+
+    // 5. Criar as transações com os resultados da categorização
     const newTransactions: Transaction[] = [];
 
-    // 3. Iterar sobre as transações que não são duplicadas
-    for (let i = 0; i < rawTransactions.length; i++) {
-      const raw = rawTransactions[i];
-      const hash = hashes[i];
-
-      if (existingHashes.has(hash)) continue;
-
-      // 4. Chamar o AI para categorizar (com userId para priorizar cache do usuário)
-      const aiResult = await this.aiService.categorizeTransaction(raw.descriptionRaw, userId);
+    for (const item of newRawTransactions) {
+      const aiResult = categorizationResults.get(item.index) || {
+        categoryId: null,
+        descriptionClean: item.raw.descriptionRaw,
+        confidence: 0,
+      };
 
       const transaction = this.transactionRepository.create({
         userId: userId,
         accountId: accountId,
-        transactionHash: hash,
-        fitid: raw.fitid,
-        descriptionRaw: raw.descriptionRaw,
+        transactionHash: item.hash,
+        fitid: item.raw.fitid,
+        descriptionRaw: item.raw.descriptionRaw,
         descriptionClean: aiResult.descriptionClean,
-        amount: Number(raw.amount), 
-        date: raw.date,
+        amount: Number(item.raw.amount), 
+        date: item.raw.date,
         categoryId: aiResult.categoryId,
         categoryConfidence: aiResult.confidence,
         needsReview: aiResult.confidence < 0.8,
-        additionalInfo: raw.additionalInfo || {},
+        additionalInfo: item.raw.additionalInfo || {},
       });
 
       newTransactions.push(transaction);
-
-      existingHashes.add(hash);
     }
 
     // 5. Salva em lote 

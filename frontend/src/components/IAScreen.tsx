@@ -107,7 +107,7 @@ export default function IAScreen() {
       const collectedKpis = await aiService.collectKPIs();
       setKpis(collectedKpis);
       
-      // 2. Gerar insights (usa cache de 48h ou gera novos)
+      // 2. Gerar insights (usa cache inteligente ou gera novos)
       const generatedInsights = await aiService.generateInitialInsights(collectedKpis);
       setInsights(generatedInsights);
       

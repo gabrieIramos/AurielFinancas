@@ -1,5 +1,8 @@
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
+// Evento customizado para notificar quando o token expira
+export const AUTH_EXPIRED_EVENT = 'auth:expired';
+
 interface ApiResponse<T = any> {
   data?: T;
   error?: string;
@@ -19,6 +22,11 @@ class ApiService {
     return headers;
   }
 
+  private handleUnauthorized(): void {
+    // Dispara evento customizado para que o AuthContext possa fazer o logout
+    window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+  }
+
   async request<T = any>(
     endpoint: string,
     options: RequestInit = {}
@@ -31,6 +39,14 @@ class ApiService {
           ...options.headers,
         },
       });
+
+      // Se receber 401, notifica que o token expirou
+      if (response.status === 401) {
+        this.handleUnauthorized();
+        return {
+          error: 'Sessão expirada. Faça login novamente.',
+        };
+      }
 
       const data = await response.json();
 

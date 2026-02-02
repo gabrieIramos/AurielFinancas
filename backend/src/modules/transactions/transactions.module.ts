@@ -8,8 +8,10 @@ import { AiModule } from '../ai/ai.module';
 
 // Parsers
 import { 
-  C6CsvParser, 
-  InterOfxParser, 
+  C6CsvParser,
+  C6ContaCorrenteCsvParser,
+  InterOfxParser,
+  BbOfxParser,
   NubankCsvParser, 
   GenericOfxParser 
 } from './services/parsers';
@@ -22,7 +24,9 @@ import { ImportService } from './services/import.service';
     TransactionsService, 
     // Parsers de banco
     C6CsvParser,
+    C6ContaCorrenteCsvParser,
     InterOfxParser,
+    BbOfxParser,
     NubankCsvParser,
     GenericOfxParser,
     // Serviço de importação

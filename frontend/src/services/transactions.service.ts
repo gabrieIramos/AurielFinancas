@@ -3,7 +3,9 @@ import { api } from './api';
 // Códigos de banco suportados pelo backend
 export type SupportedBankCode = 
   | 'C6_CSV'           // C6 Bank - Fatura cartão CSV
+  | 'C6_CONTA_CSV'     // C6 Bank - Conta corrente CSV
   | 'INTER_OFX'        // Banco Inter - OFX
+  | 'BB_OFX'           // Banco do Brasil - OFX
   | 'NUBANK_CSV'       // Nubank - CSV
   | 'GENERIC_OFX'      // Genérico OFX
   | 'AUTO';            // Detecção automática

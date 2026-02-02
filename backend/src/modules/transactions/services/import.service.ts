@@ -5,7 +5,9 @@ import {
   ImportResult, 
   ParsedTransaction,
   C6CsvParser,
+  C6ContaCorrenteCsvParser,
   InterOfxParser,
+  BbOfxParser,
   NubankCsvParser,
   GenericOfxParser,
 } from './parsers';
@@ -15,7 +17,9 @@ import {
  */
 export type SupportedBankCode = 
   | 'C6_CSV'           // C6 Bank - Fatura cartão CSV
+  | 'C6_CONTA_CSV'     // C6 Bank - Conta corrente CSV
   | 'INTER_OFX'        // Banco Inter - OFX
+  | 'BB_OFX'           // Banco do Brasil - OFX
   | 'NUBANK_CSV'       // Nubank - CSV
   | 'GENERIC_OFX'      // Genérico OFX
   | 'AUTO';            // Detecção automática
@@ -49,13 +53,17 @@ export class ImportService {
 
   constructor(
     private readonly c6CsvParser: C6CsvParser,
+    private readonly c6ContaCorrenteCsvParser: C6ContaCorrenteCsvParser,
     private readonly interOfxParser: InterOfxParser,
+    private readonly bbOfxParser: BbOfxParser,
     private readonly nubankCsvParser: NubankCsvParser,
     private readonly genericOfxParser: GenericOfxParser,
   ) {
     // Registrar todos os parsers
     this.registerParser(c6CsvParser);
+    this.registerParser(c6ContaCorrenteCsvParser);
     this.registerParser(interOfxParser);
+    this.registerParser(bbOfxParser);
     this.registerParser(nubankCsvParser);
     this.registerParser(genericOfxParser);
   }
@@ -136,9 +144,13 @@ export class ImportService {
    */
   private detectParser(filename: string, content: string): IBankParser | undefined {
     // Tentar parsers específicos primeiro (ordem de prioridade)
+    // IMPORTANTE: C6 Conta Corrente deve vir ANTES do C6 Fatura pois são ambos CSV
+    // IMPORTANTE: BB deve vir antes do Inter pois ambos são OFX
     const specificParsers = [
-      this.c6CsvParser,
+      this.c6ContaCorrenteCsvParser,  // Detecta extrato conta corrente C6
+      this.c6CsvParser,                // Detecta fatura cartão C6
       this.nubankCsvParser,
+      this.bbOfxParser,                // Detecta extrato Banco do Brasil
       this.interOfxParser,
     ];
 

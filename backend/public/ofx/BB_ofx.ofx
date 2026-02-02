@@ -1,0 +1,245 @@
+OFXHEADER:100
+DATA:OFXSGML
+VERSION:102
+SECURITY:NONE
+ENCODING:UTF-8
+CHARSET:NONE
+COMPRESSION:NONE
+OLDFILEUID:NONE
+NEWFILEUID:NONE
+
+
+<OFX>
+  <SIGNONMSGSRSV1>
+   <SONRS>
+    <STATUS>
+      <CODE>0</CODE>
+      <SEVERITY>INFO</SEVERITY>
+    </STATUS>
+    <DTSERVER>20260129151308[-3:BRT]</DTSERVER>
+    <LANGUAGE>POR</LANGUAGE>
+    <FI>
+     <ORG>Banco do Brasil</ORG>
+     <FID>1</FID>
+    </FI>
+   </SONRS>
+  </SIGNONMSGSRSV1>
+  <BANKMSGSRSV1>
+    <STMTTRNRS>
+      <TRNUID>1</TRNUID>
+        <STATUS>
+        <CODE>0</CODE>
+        <SEVERITY>INFO</SEVERITY>
+       </STATUS>
+      <STMTRS>
+        <CURDEF>BRL</CURDEF>
+        <BANKACCTFROM>
+          <BANKID>1</BANKID>
+          <BRANCHID>2525</BRANCHID>
+          <ACCTID>16490</ACCTID>
+          <ACCTTYPE>CHECKING</ACCTTYPE>
+        </BANKACCTFROM>
+        <BANKTRANLIST>
+            <DTSTART>20260129000000[-3:BRT]</DTSTART>
+            <DTEND>20260129151308[-3:BRT]</DTEND>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20251217000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>0.00</TRNAMT>
+              <FITID></FITID>
+              <NAME>Saldo Anterior</NAME>
+              <MEMO></MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260108000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>6.00</TRNAMT>
+              <FITID>100.080.800.060.861</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  RZTR11 08/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>DEBIT</TRNTYPE>
+              <DTPOSTED>20260108000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>-6.00</TRNAMT>
+              <FITID>9.903</FITID>
+              <NAME>BB Rende Fácil</NAME>
+              <MEMO>Rende Facil</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>00021130000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>0.00</TRNAMT>
+              <FITID></FITID>
+              <NAME>Saldo do dia</NAME>
+              <MEMO></MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260114000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>9.10</TRNAMT>
+              <FITID>100.140.800.054.991</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  KNCR11 14/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>DEBIT</TRNTYPE>
+              <DTPOSTED>20260114000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>-9.10</TRNAMT>
+              <FITID>9.903</FITID>
+              <NAME>BB Rende Fácil</NAME>
+              <MEMO>Rende Facil</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>00021130000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>0.00</TRNAMT>
+              <FITID></FITID>
+              <NAME>Saldo do dia</NAME>
+              <MEMO></MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260115000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>2.00</TRNAMT>
+              <FITID>100.150.800.067.447</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  DEVA11 15/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260115000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>2.40</TRNAMT>
+              <FITID>100.150.800.067.447</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  HCTR11 15/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260115000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>14.30</TRNAMT>
+              <FITID>100.150.800.067.447</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  HGLG11 15/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260115000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>4.05</TRNAMT>
+              <FITID>100.150.800.067.447</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  RECR11 15/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260115000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>8.00</TRNAMT>
+              <FITID>100.150.800.067.447</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  TGAR11 15/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260115000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>4.25</TRNAMT>
+              <FITID>100.150.800.067.447</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  VRTA11 15/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260115000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>1.64</TRNAMT>
+              <FITID>100.150.800.067.447</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  XPLG11 15/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260115000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>8.40</TRNAMT>
+              <FITID>100.150.800.067.447</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  XPSF11 15/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>DEBIT</TRNTYPE>
+              <DTPOSTED>20260115000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>-45.04</TRNAMT>
+              <FITID>9.903</FITID>
+              <NAME>BB Rende Fácil</NAME>
+              <MEMO>Rende Facil</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>00021130000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>0.00</TRNAMT>
+              <FITID></FITID>
+              <NAME>Saldo do dia</NAME>
+              <MEMO></MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260116000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>13.65</TRNAMT>
+              <FITID>100.160.800.085.475</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  PSEC11 16/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>DEBIT</TRNTYPE>
+              <DTPOSTED>20260116000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>-13.65</TRNAMT>
+              <FITID>9.903</FITID>
+              <NAME>BB Rende Fácil</NAME>
+              <MEMO>Rende Facil</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>00021130000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>0.00</TRNAMT>
+              <FITID></FITID>
+              <NAME>Saldo do dia</NAME>
+              <MEMO></MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260120000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>4.50</TRNAMT>
+              <FITID>100.200.800.074.647</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  CPTS11 20/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>20260120000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>9.00</TRNAMT>
+              <FITID>100.200.800.074.647</FITID>
+              <NAME>Ações - Proventos</NAME>
+              <MEMO>Pag Rendimento  MCCI11 20/01/2026</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>DEBIT</TRNTYPE>
+              <DTPOSTED>20260120000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>-13.50</TRNAMT>
+              <FITID>9.903</FITID>
+              <NAME>BB Rende Fácil</NAME>
+              <MEMO>Rende Facil</MEMO>
+            </STMTTRN>
+            <STMTTRN>
+              <TRNTYPE>CREDIT</TRNTYPE>
+              <DTPOSTED>00021130000000[-3:BRT]</DTPOSTED>
+              <TRNAMT>0.00</TRNAMT>
+              <FITID></FITID>
+              <NAME>Saldo do dia</NAME>
+              <MEMO></MEMO>
+            </STMTTRN>
+      </BANKTRANLIST>
+      <LEDGERBAL>
+        <BALAMT>0.00</BALAMT>
+        <DTASOF>20260129000000[-3:BRT]</DTASOF>
+      </LEDGERBAL>
+    </STMTRS>
+    </STMTTRNRS>
+  </BANKMSGSRSV1>
+</OFX>

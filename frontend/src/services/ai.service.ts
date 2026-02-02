@@ -5,11 +5,22 @@ import { categoriesService } from './categories.service';
 
 // Constantes para cache
 const INSIGHTS_CACHE_KEY = 'ai_insights_cache';
-const INSIGHTS_CACHE_TTL = 48 * 60 * 60 * 1000; // 48 horas em milissegundos
+const INSIGHTS_CACHE_TTL = 24 * 60 * 60 * 1000; // 24 horas em milissegundos (para análises sazonais/notícias)
 
 interface InsightsCache {
   insights: AIInitialInsights;
   timestamp: number;
+  transactionCount: number;  // Quantidade de transações no momento do cache
+  investmentCount: number;   // Quantidade de investimentos no momento do cache
+}
+
+export interface CacheValidationResult {
+  isValid: boolean;
+  reason: 'valid' | 'expired' | 'transactions_changed' | 'investments_changed' | 'no_cache';
+  cachedTransactionCount?: number;
+  cachedInvestmentCount?: number;
+  currentTransactionCount?: number;
+  currentInvestmentCount?: number;
 }
 
 export interface AIInsight {
@@ -207,23 +218,39 @@ class AIService {
   }
 
   /**
-   * Gera insights iniciais baseados nas KPIs (com cache de 48h)
+   * Gera insights iniciais baseados nas KPIs (com cache inteligente)
+   * Cache é invalidado se:
+   * 1. Quantidade de transações mudou
+   * 2. Quantidade de investimentos mudou
+   * 3. Passou 24h (para análises sazonais e notícias atuais)
    */
   async generateInitialInsights(kpis: FinancialKPIs): Promise<AIInitialInsights> {
+    // Obter contagens atuais
+    const currentTransactionCount = kpis.transactionCount;
+    const currentInvestmentCount = kpis.totalAssets;
+
     // Verificar se existe cache válido
-    const cachedInsights = this.getCachedInsights();
-    if (cachedInsights) {
-      console.log('[AI Insights] Usando cache local (válido por mais', this.getRemainingCacheTime(), ')');
-      return cachedInsights;
+    const validation = this.validateCache(currentTransactionCount, currentInvestmentCount);
+    
+    if (validation.isValid) {
+      const cachedInsights = this.getCachedInsights();
+      if (cachedInsights) {
+        console.log('[AI Insights] Usando cache local (válido por mais', this.getRemainingCacheTime(), ')');
+        console.log('[AI Insights] Transações:', currentTransactionCount, '| Investimentos:', currentInvestmentCount);
+        return cachedInsights;
+      }
+    } else {
+      console.log('[AI Insights] Cache invalidado. Motivo:', this.getInvalidationReason(validation));
     }
 
-    console.log('[AI Insights] Cache expirado ou inexistente, gerando novos insights via IA...');
+    console.log('[AI Insights] Gerando novos insights via IA...');
+    console.log('[AI Insights] Transações:', currentTransactionCount, '| Investimentos:', currentInvestmentCount);
 
     try {
       const response = await api.post<AIInitialInsights>('/ai/insights', { kpis });
       if (response.data) {
-        // Salvar no cache
-        this.saveInsightsToCache(response.data);
+        // Salvar no cache com as contagens atuais
+        this.saveInsightsToCache(response.data, currentTransactionCount, currentInvestmentCount);
         return response.data;
       }
     } catch (error) {
@@ -232,8 +259,71 @@ class AIService {
     
     // Fallback: gerar insights localmente baseados nas KPIs
     const localInsights = this.generateLocalInsights(kpis);
-    this.saveInsightsToCache(localInsights);
+    this.saveInsightsToCache(localInsights, currentTransactionCount, currentInvestmentCount);
     return localInsights;
+  }
+
+  /**
+   * Valida o cache verificando quantidade de dados e tempo
+   */
+  validateCache(currentTransactionCount: number, currentInvestmentCount: number): CacheValidationResult {
+    try {
+      const cached = localStorage.getItem(INSIGHTS_CACHE_KEY);
+      if (!cached) {
+        return { isValid: false, reason: 'no_cache' };
+      }
+
+      const { timestamp, transactionCount, investmentCount }: InsightsCache = JSON.parse(cached);
+      const now = Date.now();
+
+      // 1. Verificar se a quantidade de transações mudou
+      if (transactionCount !== currentTransactionCount) {
+        return {
+          isValid: false,
+          reason: 'transactions_changed',
+          cachedTransactionCount: transactionCount,
+          currentTransactionCount,
+        };
+      }
+
+      // 2. Verificar se a quantidade de investimentos mudou
+      if (investmentCount !== currentInvestmentCount) {
+        return {
+          isValid: false,
+          reason: 'investments_changed',
+          cachedInvestmentCount: investmentCount,
+          currentInvestmentCount,
+        };
+      }
+
+      // 3. Se quantidades iguais, verificar se passou 24h
+      if (now - timestamp >= INSIGHTS_CACHE_TTL) {
+        return { isValid: false, reason: 'expired' };
+      }
+
+      return { isValid: true, reason: 'valid' };
+    } catch (error) {
+      console.error('Erro ao validar cache:', error);
+      return { isValid: false, reason: 'no_cache' };
+    }
+  }
+
+  /**
+   * Retorna mensagem amigável do motivo da invalidação
+   */
+  private getInvalidationReason(validation: CacheValidationResult): string {
+    switch (validation.reason) {
+      case 'no_cache':
+        return 'Nenhum cache encontrado';
+      case 'expired':
+        return 'Cache expirado (24h) - buscando análises atualizadas e sazonais';
+      case 'transactions_changed':
+        return `Transações alteradas (${validation.cachedTransactionCount} → ${validation.currentTransactionCount})`;
+      case 'investments_changed':
+        return `Investimentos alterados (${validation.cachedInvestmentCount} → ${validation.currentInvestmentCount})`;
+      default:
+        return 'Cache válido';
+    }
   }
 
   /**
@@ -244,17 +334,8 @@ class AIService {
       const cached = localStorage.getItem(INSIGHTS_CACHE_KEY);
       if (!cached) return null;
 
-      const { insights, timestamp }: InsightsCache = JSON.parse(cached);
-      const now = Date.now();
-
-      // Verificar se o cache ainda é válido (48h)
-      if (now - timestamp < INSIGHTS_CACHE_TTL) {
-        return insights;
-      }
-
-      // Cache expirado, remover
-      localStorage.removeItem(INSIGHTS_CACHE_KEY);
-      return null;
+      const { insights }: InsightsCache = JSON.parse(cached);
+      return insights;
     } catch (error) {
       console.error('Erro ao ler cache de insights:', error);
       localStorage.removeItem(INSIGHTS_CACHE_KEY);
@@ -263,16 +344,18 @@ class AIService {
   }
 
   /**
-   * Salva insights no cache local
+   * Salva insights no cache local com contagens
    */
-  private saveInsightsToCache(insights: AIInitialInsights): void {
+  private saveInsightsToCache(insights: AIInitialInsights, transactionCount: number, investmentCount: number): void {
     try {
       const cache: InsightsCache = {
         insights,
         timestamp: Date.now(),
+        transactionCount,
+        investmentCount,
       };
       localStorage.setItem(INSIGHTS_CACHE_KEY, JSON.stringify(cache));
-      console.log('[AI Insights] Cache salvo, válido por 48h');
+      console.log('[AI Insights] Cache salvo com', transactionCount, 'transações e', investmentCount, 'investimentos');
     } catch (error) {
       console.error('Erro ao salvar cache de insights:', error);
     }
