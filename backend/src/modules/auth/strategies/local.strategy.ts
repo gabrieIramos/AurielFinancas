@@ -1,19 +1,17 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-local';
-import { AuthService } from '../auth.service';
 
+// DEPRECATED: Autenticação agora é gerenciada pelo BetterAuth
+// Este arquivo é mantido apenas para compatibilidade com módulos Passport existentes
 @Injectable()
 export class LocalStrategy extends PassportStrategy(Strategy) {
-  constructor(private authService: AuthService) {
+  constructor() {
     super({ usernameField: 'email' });
   }
 
   async validate(email: string, password: string): Promise<any> {
-    const user = await this.authService.validateUser(email, password);
-    if (!user) {
-      throw new UnauthorizedException();
-    }
-    return user;
+    // BetterAuth gerencia validação via /api/auth/sign-in/email
+    return null;
   }
 }

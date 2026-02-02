@@ -17,7 +17,7 @@ export class Transaction {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id', type: 'uuid' })
+  @Column({ name: 'user_id', type: 'text' })
   userId: string;
 
   @Column({ name: 'account_id', type: 'uuid' })

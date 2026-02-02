@@ -1,6 +1,6 @@
 import { Controller, Get, UseGuards, Request } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { BetterAuthGuard } from '../auth/guards/better-auth.guard';
 import { UsersService } from './users.service';
 
 @ApiTags('users')
@@ -8,12 +8,17 @@ import { UsersService } from './users.service';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(BetterAuthGuard)
   @ApiBearerAuth()
   @Get('me')
   async getProfile(@Request() req) {
-    const user = await this.usersService.findById(req.user.id);
-    const { passwordHash, ...result } = user;
-    return result;
+    // req.user já vem do BetterAuthGuard
+    return {
+      id: req.user.id,
+      name: req.user.name,
+      email: req.user.email,
+      fullName: req.user.fullName || req.user.name,
+      image: req.user.image,
+    };
   }
 }

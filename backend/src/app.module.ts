@@ -29,7 +29,7 @@ import { AiModule } from './modules/ai/ai.module';
         password: configService.get('DATABASE_PASSWORD'),
         database: configService.get('DATABASE_NAME'),
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: configService.get('NODE_ENV') === 'development',        
+        synchronize: configService.get('NODE_ENV') === 'development',  
         ssl: configService.get<string>('NODE_ENV') === 'production'
           ? { rejectUnauthorized: true }
           : { rejectUnauthorized: false },

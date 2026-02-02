@@ -48,9 +48,19 @@ export default function PerfilScreen() {
         {/* User Card */}
         <div className={`${theme === "dark" ? "bg-gradient-to-br from-zinc-800 to-zinc-900" : "bg-gradient-to-br from-zinc-100 to-zinc-200"} rounded-2xl p-6 mb-6`}>
           <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center">
-              <span className="text-2xl text-white">{userData.nome.split(' ').map(n => n[0]).join('').substring(0, 2)}</span>
-            </div>
+            {user?.image ? (
+              <img 
+                src={user.image} 
+                alt={userData.nome}
+                className="w-16 h-16 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-16 h-16 bg-emerald-600 rounded-full flex items-center justify-center">
+                <span className="text-2xl text-white">
+                  {userData.nome.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                </span>
+              </div>
+            )}
             <div className="flex-1">
               <h2 className="text-xl mb-1">{userData.nome}</h2>
               <div className="flex items-center gap-2">

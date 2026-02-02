@@ -1,6 +1,6 @@
 import {
   Entity,
-  PrimaryGeneratedColumn,
+  PrimaryColumn,
   Column,
   CreateDateColumn,
   OneToMany,
@@ -10,22 +10,32 @@ import { Transaction } from '../../transactions/entities/transaction.entity';
 import { Investment } from '../../investments/entities/investment.entity';
 import { NetWorthHistory } from '../../net-worth/entities/net-worth-history.entity';
 
-@Entity('users')
+// Tabela "user" do BetterAuth - usando mesma estrutura
+@Entity('user')
 export class User {
-  @PrimaryGeneratedColumn('uuid')
+  @PrimaryColumn({ type: 'text' })
   id: string;
 
-  @Column({ name: 'full_name', type: 'text' })
-  fullName: string;
+  @Column({ type: 'text' })
+  name: string;
 
   @Column({ type: 'text', unique: true })
   email: string;
 
-  @Column({ name: 'password_hash', type: 'text' })
-  passwordHash: string;
+  @Column({ name: 'emailVerified', type: 'boolean', default: false })
+  emailVerified: boolean;
 
-  @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
+  @Column({ type: 'text', nullable: true })
+  image: string;
+
+  @Column({ name: 'fullName', type: 'text', nullable: true })
+  fullName: string;
+
+  @CreateDateColumn({ name: 'createdAt', type: 'timestamp with time zone' })
   createdAt: Date;
+
+  @Column({ name: 'updatedAt', type: 'timestamp with time zone', nullable: true })
+  updatedAt: Date;
 
   @OneToMany(() => Account, (account) => account.user)
   accounts: Account[];

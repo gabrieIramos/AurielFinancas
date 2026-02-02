@@ -2,7 +2,6 @@ import { betterAuth } from 'better-auth';
 import { Pool } from 'pg';
 import * as dotenv from 'dotenv';
 
-// Carregar variáveis de ambiente manualmente
 dotenv.config();
 
 // Connection string para Neon
@@ -18,7 +17,7 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    requireEmailVerification: false, // Pode habilitar depois se quiser
+    requireEmailVerification: false, 
   },
   socialProviders: {
     google: {
@@ -43,9 +42,8 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [
-    'http://localhost:5172',
-    'http://localhost:5173',
-    process.env.FRONTEND_URL || 'http://localhost:5173',
+    'http://localhost:5172',    
+    process.env.FRONTEND_URL || 'http://localhost:5172',
   ],
 });
 

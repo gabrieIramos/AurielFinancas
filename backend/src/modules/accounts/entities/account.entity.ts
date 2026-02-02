@@ -17,12 +17,12 @@ export enum AccountType {
   INVESTIMENTO = 'INVESTIMENTO',
 }
 
-@Entity('accounts')
+@Entity('bank_accounts')
 export class Account {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'user_id', type: 'uuid' })
+  @Column({ name: 'user_id', type: 'text' })
   userId: string;
 
   @Column({ name: 'institution_id', type: 'uuid', nullable: true })
