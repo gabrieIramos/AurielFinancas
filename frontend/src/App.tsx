@@ -10,6 +10,7 @@ import PerfilScreen from "./components/PerfilScreen";
 import OnboardingScreen from "./components/OnboardingScreen";
 import LoginScreen from "./components/LoginScreen";
 import SignupScreen from "./components/SignupScreen";
+import FinancialProfileForm from "./components/FinancialProfileForm";
 import { Toaster } from "./components/ui/sonner";
 
 type Tab = "home" | "extrato" | "carteira" | "ia" | "perfil";
@@ -17,9 +18,9 @@ type AuthView = "onboarding" | "login" | "signup";
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
-  const [authView, setAuthView] = useState<AuthView>("onboarding");
+  const [authView, setAuthView] = useState<AuthView>("login");
   const { theme } = useTheme();
-  const { isAuthenticated, hasSeenOnboarding, login, signup, completeOnboarding } = useAuth();
+  const { isAuthenticated, hasSeenOnboarding, hasFinancialProfile, completeOnboarding, completeFinancialProfile } = useAuth();
 
   const tabs = [
     { id: "home" as Tab, icon: Home, label: "Home" },
@@ -46,7 +47,7 @@ function AppContent() {
     }
   };
 
-  // Show onboarding if not seen
+  // Show onboarding only on first visit to the site (not per user)
   if (!hasSeenOnboarding) {
     return (
       <OnboardingScreen
@@ -70,38 +71,36 @@ function AppContent() {
         <SignupScreen
           onSignupSuccess={() => {
             // O signup já é feito no componente através do contexto
-            // Aqui só precisamos que a navegação aconteça automaticamente
-            // pois o isAuthenticated já será true
+            // Após o signup, vai mostrar o formulário de perfil financeiro
           }}
           onBackToLogin={() => setAuthView("login")}
         />
       );
     }
 
-    if (authView === "login") {
-      return (
-        <LoginScreen
-          onLoginSuccess={() => {
-            // O login já é feito no componente através do contexto
-            // Aqui só precisamos que a navegação aconteça automaticamente
-            // pois o isAuthenticated já será true
-          }}
-          onBackToOnboarding={() => setAuthView("onboarding")}
-          onSignup={() => setAuthView("signup")}
-        />
-      );
-    }
-
+    // Default to login screen
     return (
-      <OnboardingScreen
-        onComplete={completeOnboarding}
+      <LoginScreen
+        onLoginSuccess={() => {
+          // O login já é feito no componente através do contexto
+        }}
+        onBackToOnboarding={() => setAuthView("onboarding")}
         onSignup={() => setAuthView("signup")}
-        onLogin={() => setAuthView("login")}
       />
     );
   }
 
-  // Show main app if authenticated
+  // Show financial profile form if user hasn't completed it yet
+  if (!hasFinancialProfile) {
+    return (
+      <FinancialProfileForm
+        onComplete={completeFinancialProfile}
+        onSkip={completeFinancialProfile}
+      />
+    );
+  }
+
+  // Show main app if authenticated and has financial profile
   return (
     <div className={theme === "dark" ? "dark" : ""}>
       <div className={`min-h-screen ${theme === "dark" ? "bg-black" : "bg-white"}`}>

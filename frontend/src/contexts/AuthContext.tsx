@@ -1,17 +1,20 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { authClient, signIn, signUp, signOut, useSession } from "../lib/auth-client";
+import { userService } from "../services/user.service";
 
 type User = {
   id: string;
   name: string;
   email: string;
   image?: string;
+  hasFinancialProfile?: boolean;
 };
 
 type AuthContextType = {
   user: User | null;
   isAuthenticated: boolean;
   hasSeenOnboarding: boolean;
+  hasFinancialProfile: boolean;
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<boolean>;
@@ -19,6 +22,7 @@ type AuthContextType = {
   signup: (name: string, email: string, password: string) => Promise<boolean>;
   logout: () => Promise<void>;
   completeOnboarding: () => void;
+  completeFinancialProfile: () => void;
   clearError: () => void;
 };
 
@@ -28,7 +32,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hasFinancialProfile, setHasFinancialProfile] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(() => {
+    // Verifica se é a primeira visita ao site (não por usuário, mas pelo navegador)
     const seen = localStorage.getItem("hasSeenOnboarding");
     return seen === "true";
   });
@@ -45,11 +51,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         email: session.user.email,
         image: session.user.image || undefined,
       });
+      
+      // Verifica se o usuário tem perfil financeiro
+      checkFinancialProfile();
     } else if (!isPending) {
       setUser(null);
+      setHasFinancialProfile(false);
     }
     setIsLoading(isPending);
   }, [session, isPending]);
+
+  const checkFinancialProfile = async () => {
+    try {
+      const response = await userService.checkFinancialProfile();
+      if (response.data) {
+        setHasFinancialProfile(response.data.hasProfile);
+      }
+    } catch (err) {
+      console.error('Erro ao verificar perfil financeiro:', err);
+    }
+  };
 
   const logout = useCallback(async () => {
     try {
@@ -161,6 +182,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("hasSeenOnboarding", "true");
   };
 
+  const completeFinancialProfile = () => {
+    setHasFinancialProfile(true);
+  };
+
   const clearError = () => {
     setError(null);
   };
@@ -171,6 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isAuthenticated: !!user,
         hasSeenOnboarding,
+        hasFinancialProfile,
         isLoading,
         error,
         login,
@@ -178,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signup,
         logout,
         completeOnboarding,
+        completeFinancialProfile,
         clearError,
       }}
     >

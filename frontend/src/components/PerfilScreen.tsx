@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { Switch } from "./ui/switch";
 import { investmentsService, PortfolioItem, FixedIncomeInvestment } from "../services/investments.service";
 import * as XLSX from "xlsx";
+import PrivacySecurityModal from "./PrivacySecurityModal";
 
 // Mock user data will be replaced by auth context
 const menuItems = [
@@ -34,6 +35,7 @@ export default function PerfilScreen() {
   const { theme, toggleTheme } = useTheme();
   const { user, logout } = useAuth();
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showPrivacyModal, setShowPrivacyModal] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportSuccess, setExportSuccess] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -51,6 +53,8 @@ export default function PerfilScreen() {
       setShowExportModal(true);
       setExportSuccess(false);
       setExportError(null);
+    } else if (label === "Privacidade e Segurança") {
+      setShowPrivacyModal(true);
     }
   };
 
@@ -74,25 +78,23 @@ export default function PerfilScreen() {
         const portfolioItems = portfolioResponse.data?.items || [];
 
         if (portfolioItems.length > 0) {
-          const variableData = portfolioItems.map((item: PortfolioItem) => ({
-            'Ativo': item.ativo.nome,
+          const variableData = portfolioItems.map((item: PortfolioItem) => ({            
             'Ticker': item.ativo.ticker,
             'Tipo': item.ativo.tipo,
             'Categoria': item.ativo.categoria,
-            'Quantidade': item.totalQuantity,
-            'Preço Médio (R$)': Number(item.averagePrice.toFixed(2)),
-            'Preço Atual (R$)': Number(item.currentPrice.toFixed(2)),
-            'Custo Total (R$)': Number(item.totalCost.toFixed(2)),
-            'Valor Atual (R$)': Number(item.currentValue.toFixed(2)),
-            'Lucro/Prejuízo (R$)': Number(item.profitLoss.toFixed(2)),
-            'Rentabilidade (%)': Number(item.profitLossPercentage.toFixed(2)),
+            'Quantidade': Number(item.totalQuantity || 0),
+            'Preço Médio (R$)': Number(Number(item.averagePrice || 0).toFixed(2)),
+            'Preço Atual (R$)': Number(Number(item.currentPrice || 0).toFixed(2)),
+            'Custo Total (R$)': Number(Number(item.totalCost || 0).toFixed(2)),
+            'Valor Atual (R$)': Number(Number(item.currentValue || 0).toFixed(2)),
+            'Lucro/Prejuízo (R$)': Number(Number(item.profitLoss || 0).toFixed(2)),
+            'Rentabilidade (%)': Number(Number(item.profitLossPercentage || 0).toFixed(2)),
           }));
 
           const wsVariable = XLSX.utils.json_to_sheet(variableData);
           
           // Ajustar largura das colunas
-          wsVariable['!cols'] = [
-            { wch: 25 }, // Ativo
+          wsVariable['!cols'] = [            
             { wch: 10 }, // Ticker
             { wch: 12 }, // Tipo
             { wch: 15 }, // Categoria
@@ -124,14 +126,14 @@ export default function PerfilScreen() {
             'Nome': item.name,
             'Tipo': item.type,
             'Instituição': item.institution || '-',
-            'Valor Investido (R$)': Number(item.investedAmount.toFixed(2)),
-            'Valor Atual (R$)': Number((item.estimatedCurrentValue || item.investedAmount).toFixed(2)),
-            'Taxa (%)': Number(item.interestRate.toFixed(2)),
+            'Valor Investido (R$)': Number(Number(item.investedAmount).toFixed(2)),
+            'Valor Atual (R$)': Number(Number(item.estimatedCurrentValue || item.investedAmount).toFixed(2)),
+            'Taxa (%)': Number(Number(item.interestRate || 0).toFixed(2)),
             'Indexador': item.indexer,
             'Data de Compra': new Date(item.purchaseDate).toLocaleDateString('pt-BR'),
             'Vencimento': item.maturityDate ? new Date(item.maturityDate).toLocaleDateString('pt-BR') : '-',
-            'Rendimento Total (R$)': Number((item.totalYield || 0).toFixed(2)),
-            'Rendimento (%)': Number((item.yieldPercentage || 0).toFixed(2)),
+            'Rendimento Total (R$)': Number(Number(item.totalYield || 0).toFixed(2)),
+            'Rendimento (%)': Number(Number(item.yieldPercentage || 0).toFixed(2)),
             'Status': item.isActive ? 'Ativo' : 'Resgatado',
           }));
 
@@ -378,23 +380,21 @@ export default function PerfilScreen() {
             )}
 
             {/* Export Options */}
-            <div className="space-y-3">
+            <div className="space-y-2">
               <button
                 onClick={() => exportInvestmentsToExcel('variable')}
                 disabled={isExporting}
-                className={`w-full p-4 rounded-xl flex items-center justify-between ${
+className={`w-full p-3 rounded-xl flex items-center justify-between ${
                   theme === "dark" ? "bg-zinc-800 hover:bg-zinc-700" : "bg-zinc-50 hover:bg-zinc-100"
                 } transition-colors disabled:opacity-50`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-blue-600/20 rounded-full flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-blue-400" />
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-blue-600/20 rounded-lg flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-blue-400" />
                   </div>
-                  <div className="text-left">
-                    <p className={theme === "dark" ? "text-white" : "text-black"}>Renda Variável</p>
-                    <p className={`text-xs ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                      Ações, FIIs, ETFs, BDRs
-                    </p>
+                  <div className="text-center">
+                    <p className={`text-sm ${theme === "dark" ? "text-white" : "text-black"}`}>Renda Variável</p>
+                    <p className={`text-xs ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>Ações, FIIs, ETFs, BDRs</p>
                   </div>
                 </div>
                 {isExporting ? (
@@ -407,19 +407,17 @@ export default function PerfilScreen() {
               <button
                 onClick={() => exportInvestmentsToExcel('fixed')}
                 disabled={isExporting}
-                className={`w-full p-4 rounded-xl flex items-center justify-between ${
+                className={`w-full p-3 rounded-xl flex items-center justify-between ${
                   theme === "dark" ? "bg-zinc-800 hover:bg-zinc-700" : "bg-zinc-50 hover:bg-zinc-100"
                 } transition-colors disabled:opacity-50`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-600/20 rounded-full flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-purple-400" />
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-purple-600/20 rounded-lg flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-purple-400" />
                   </div>
-                  <div className="text-left">
-                    <p className={theme === "dark" ? "text-white" : "text-black"}>Renda Fixa</p>
-                    <p className={`text-xs ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                      CDB, LCI, LCA, Tesouro Direto
-                    </p>
+                  <div className="text-center">
+                    <p className={`text-sm ${theme === "dark" ? "text-white" : "text-black"}`}>Renda Fixa</p>
+                    <p className={`text-xs ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>CDB, LCI, LCA, Tesouro Direto</p>
                   </div>
                 </div>
                 {isExporting ? (
@@ -432,17 +430,15 @@ export default function PerfilScreen() {
               <button
                 onClick={() => exportInvestmentsToExcel('all')}
                 disabled={isExporting}
-                className={`w-full p-4 rounded-xl flex items-center justify-between bg-emerald-600 hover:bg-emerald-700 transition-colors disabled:opacity-50`}
+                className={`w-full p-3 rounded-xl flex items-center justify-between bg-emerald-600 hover:bg-emerald-700 transition-colors disabled:opacity-50`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-white" />
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center">
+                    <FileText className="w-4 h-4 text-white" />
                   </div>
-                  <div className="text-left">
-                    <p className="text-white font-medium">Exportar Tudo</p>
-                    <p className="text-xs text-emerald-100">
-                      Todos os investimentos em um arquivo
-                    </p>
+                  <div className="text-center">
+                    <p className="text-sm text-white font-medium">Exportar Tudo</p>
+                    <p className="text-xs text-emerald-100">Todos os investimentos em um arquivo</p>
                   </div>
                 </div>
                 {isExporting ? (
@@ -460,6 +456,13 @@ export default function PerfilScreen() {
           </div>
         </div>
       )}
+
+      {/* Privacy & Security Modal */}
+      <PrivacySecurityModal
+        isOpen={showPrivacyModal}
+        onClose={() => setShowPrivacyModal(false)}
+        theme={theme}
+      />
     </div>
   );
 }

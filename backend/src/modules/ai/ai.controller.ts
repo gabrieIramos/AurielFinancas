@@ -71,7 +71,8 @@ export class AiController {
 
   @Post('chat')
   async chat(@Body() body: ChatRequest, @Request() req): Promise<{ response: string }> {
-    return this.aiService.chat(body.message, body.kpis, body.conversationHistory);
+    // Passa o userId para personalizar as respostas com o perfil financeiro
+    return this.aiService.chat(body.message, body.kpis, body.conversationHistory, req.user?.id);
   }
 
   @Post('insights')

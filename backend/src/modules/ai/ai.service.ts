@@ -5,6 +5,7 @@ import { Repository, IsNull } from 'typeorm';
 import Groq from 'groq-sdk';
 import { AiCategoryCache } from './entities/ai-category-cache.entity';
 import { Category } from '../categories/entities/category.entity';
+import { UsersService } from '../users/users.service';
 
 interface CategorizationResult {
   categoryId: string;
@@ -254,6 +255,7 @@ export class AiService {
     private cacheRepository: Repository<AiCategoryCache>,
     @InjectRepository(Category)
     private categoryRepository: Repository<Category>,
+    private usersService: UsersService,
   ) {
     const apiKey = this.configService.get<string>('GROQ_API_KEY');
     this.isConfigured = !!apiKey;
@@ -695,12 +697,24 @@ JSON: {"results":[{"index":1,"merchant":"NOME","category":"Cat","confidence":0.9
   /**
    * Chat com IA para responder perguntas sobre finanças
    */
-  async chat(message: string, kpis: FinancialKPIs, conversationHistory: ChatMessage[] = []): Promise<{ response: string }> {
+  async chat(message: string, kpis: FinancialKPIs, conversationHistory: ChatMessage[] = [], userId?: string): Promise<{ response: string }> {
     if (!this.isConfigured) {
       return { response: 'Desculpe, o serviço de IA não está configurado no momento.' };
     }
 
     this.logger.debug(`Chat KPIs recebidos: Income=${kpis.totalIncome}, Expenses=${kpis.totalExpenses}, Transactions=${kpis.transactionCount}, Assets=${kpis.totalAssets}`);
+
+    // Buscar perfil financeiro do usuário para personalização
+    let userProfileContext = '';
+    if (userId) {
+      const profileText = await this.usersService.getFinancialProfileForAI(userId);
+      if (profileText) {
+        userProfileContext = `\n\nPERFIL DO USUÁRIO:
+${profileText}
+
+Use essas informações sobre o perfil do usuário para personalizar suas respostas e sugestões.`;
+      }
+    }
 
     // Formatar lista de ativos
     const assetsInfo = kpis.assets && kpis.assets.length > 0
@@ -726,16 +740,17 @@ CARTEIRA DE INVESTIMENTOS:
 - Distribuição por tipo: ${kpis.portfolioDistribution.map(d => `${d.tipo}: ${d.percentage.toFixed(1)}%`).join(', ') || 'Nenhuma'}
 
 ATIVOS NA CARTEIRA (detalhado):
-${assetsInfo}
+${assetsInfo}${userProfileContext}
 
 Regras:
 1. Responda de forma concisa e direta
 2. Use os dados financeiros quando relevante
-3. Dê sugestões práticas e personalizadas
+3. Dê sugestões práticas e personalizadas baseadas no perfil do usuário
 4. Seja amigável mas profissional
 5. Responda em português brasileiro
 6. Quando perguntado sobre ativos específicos, use os dados detalhados acima
-7. Forneça notícias de mercado se relevante para a pergunta`;
+7. Considere o perfil de risco, objetivos e desafios do usuário nas suas recomendações
+8. IMPORTANTE: As sugestões são apenas informativas e não constituem recomendação de investimento`;
 
     try {
       const messages = [
