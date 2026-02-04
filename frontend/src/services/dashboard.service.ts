@@ -1,7 +1,7 @@
 import { transactionsService, Transaction } from './transactions.service';
-import { investmentsService, PortfolioItem } from './investments.service';
+import { investmentsService, PortfolioItem, FixedIncomePortfolioResponse } from './investments.service';
 import { accountsService, Account } from './accounts.service';
-import { authService } from './auth.service';
+import { netWorthService, NetWorthHistoryResponse } from './networth.service';
 
 export interface DashboardResumoMensal {
   receitas: number;
@@ -34,18 +34,30 @@ export interface DashboardData {
   despesasPorCategoria: DashboardDespesaCategoria[];
   alocacaoAtivos: DashboardAlocacaoAtivo[];
   historicoPatrimonio: DashboardPatrimonioHistorico[];
+  hasPatrimonioHistory: boolean; // true se tem histórico real, false se é usuário novo
 }
 
-// Cores para categorias de despesas
+// Cores para categorias de despesas - 16 categorias com cores distintas
 const CATEGORY_COLORS: Record<string, string> = {
-  'Alimentação': '#f59e0b',
-  'Transporte': '#3b82f6',
-  'Saúde': '#10b981',
-  'Lazer': '#8b5cf6',
-  'Assinaturas': '#ef4444',
-  'Educação': '#06b6d4',
-  'Moradia': '#ec4899',
-  'Compras': '#f97316',
+  'Saúde': '#10b981',           // Verde esmeralda
+  'Assinatura': '#8b5cf6',      // Roxo
+  'Educação': '#3b82f6',        // Azul
+  'Transferências': '#6b7280',  // Cinza
+  'Alimentação': '#f59e0b',     // Âmbar/Laranja
+  'Impostos': '#dc2626',        // Vermelho
+  'Outras': '#71717a',          // Cinza escuro
+  'Pets': '#f472b6',            // Rosa
+  'Mercado': '#84cc16',         // Lima/Verde claro
+  'Lazer': '#a855f7',           // Violeta
+  'Presentes': '#ec4899',       // Pink
+  'Viagens': '#14b8a6',         // Teal/Turquesa
+  'Compras': '#f97316',         // Laranja intenso
+  'Seguros': '#0ea5e9',         // Azul céu
+  'Contas e Serviços': '#6366f1', // Indigo
+  'Transporte': '#eab308',      // Amarelo
+  // Mantém compatibilidade com nomes antigos
+  'Assinaturas': '#8b5cf6',
+  'Moradia': '#06b6d4',
   'Serviços': '#6366f1',
   'Outros': '#71717a',
 };
@@ -54,10 +66,21 @@ const CATEGORY_COLORS: Record<string, string> = {
 const ASSET_TYPE_COLORS: Record<string, string> = {
   'Ação': '#10b981',
   'FII': '#3b82f6',
-  'Renda Fixa': '#8b5cf6',
   'Criptomoeda': '#f59e0b',
   'ETF': '#ec4899',
   'BDR': '#06b6d4',
+  // Tipos de Renda Fixa
+  'CDB': '#8b5cf6',
+  'LCI': '#a855f7',
+  'LCA': '#7c3aed',
+  'Tesouro Selic': '#6366f1',
+  'Tesouro Prefixado': '#4f46e5',
+  'Tesouro IPCA+': '#4338ca',
+  'LC': '#c084fc',
+  'Debênture': '#9333ea',
+  'CRI': '#7e22ce',
+  'CRA': '#6b21a8',
+  'Poupança': '#d946ef',
 };
 
 // Cores para tipos de conta
@@ -66,28 +89,27 @@ const ACCOUNT_TYPE_COLORS: Record<string, string> = {
   'Outros Investimentos': '#a855f7',
 };
 
-// Nomes dos meses
-const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-
 class DashboardService {
   /**
    * Carrega todos os dados do dashboard
    */
-  async getDashboardData(): Promise<DashboardData> {
-    // Obter nome do usuário
-    const user = authService.getUser();
-    const userName = user?.fullName?.split(' ')[0] || 'Usuário';
+  async getDashboardData(userName?: string): Promise<DashboardData> {
+    const displayName = userName?.split(' ')[0] || 'Usuário';
 
-    // Carregar dados em paralelo
-    const [transactionsResult, portfolioResult, accountsResult] = await Promise.all([
+    // Carregar dados em paralelo (incluindo histórico de patrimônio)
+    const [transactionsResult, portfolioResult, fixedIncomeResult, accountsResult, netWorthResult] = await Promise.all([
       transactionsService.getAll(),
       investmentsService.getPortfolio(),
+      investmentsService.getFixedIncomePortfolio(),
       accountsService.getAll(),
+      netWorthService.getHistory(12),
     ]);
 
     const transactions = transactionsResult.data || [];
     const portfolio = portfolioResult.data;
+    const fixedIncomePortfolio = fixedIncomeResult.data;
     const accounts = accountsResult.data || [];
+    const netWorthData = netWorthResult.data;
 
     // DEBUG
     console.log('=== DEBUG DASHBOARD ===');
@@ -97,17 +119,10 @@ class DashboardService {
       calculatedBalance: a.calculatedBalance 
     })));
     console.log('Portfolio:', portfolio?.summary);
+    console.log('Net Worth History:', netWorthData);
 
-    // Calcular saldo total das contas (exceto cartão de crédito que é dívida)
-    const saldoContas = this.calcularSaldoContas(accounts);
-    console.log('Saldo total das contas:', saldoContas);
-
-    // Calcular valor dos investimentos
-    const valorInvestimentos = portfolio?.summary?.totalValue || 0;
-    console.log('Valor investimentos:', valorInvestimentos);
-
-    // Calcular patrimônio total = saldo das contas + investimentos
-    const patrimonioTotal = saldoContas + valorInvestimentos;
+    // Usar patrimônio do snapshot atual (mais preciso)
+    const patrimonioTotal = netWorthData?.currentSnapshot?.netWorth || 0;
     console.log('Patrimônio total:', patrimonioTotal);
     console.log('=== FIM DEBUG ===');
 
@@ -115,10 +130,23 @@ class DashboardService {
     const resumoMensal = this.calcularResumoMensal(transactions);
     const saldoMes = resumoMensal.receitas - resumoMensal.gastos;
     
-    // Variação percentual do mês (baseado no saldo líquido vs patrimônio)
-    const variacaoMes = patrimonioTotal > 0 
-      ? (saldoMes / patrimonioTotal) * 100 
-      : (portfolio?.summary?.profitLossPercentage || 0);
+    // Rendimento da renda fixa no mês
+    const rendimentoRendaFixaMes = fixedIncomePortfolio?.summary?.totalMonthlyYield || 0;
+    
+    // Calcular variação percentual baseada no histórico real
+    let variacaoMes = 0;
+    if (netWorthData?.hasHistory && netWorthData.history.length > 0) {
+      // Pegar último registro do histórico para comparar
+      const lastHistoryItem = netWorthData.history[netWorthData.history.length - 1];
+      const lastNetWorth = Number(lastHistoryItem.netWorth) || 0;
+      if (lastNetWorth > 0) {
+        variacaoMes = ((patrimonioTotal - lastNetWorth) / lastNetWorth) * 100;
+      }
+    } else if (patrimonioTotal > 0) {
+      // Usuário novo: variação baseada no saldo do mês
+      const variacaoAbsoluta = saldoMes + rendimentoRendaFixaMes;
+      variacaoMes = (variacaoAbsoluta / patrimonioTotal) * 100;
+    }
 
     // Calcular valor investido no mês (transações de investimento)
     const investimentosNoMes = this.calcularInvestimentosNoMes();
@@ -126,14 +154,18 @@ class DashboardService {
     // Calcular despesas por categoria
     const despesasPorCategoria = this.calcularDespesasPorCategoria(transactions);
 
-    // Calcular alocação de ativos (incluindo contas)
-    const alocacaoAtivos = this.calcularAlocacaoAtivosCompleta(portfolio?.items || [], accounts);
+    // Calcular alocação de ativos (incluindo contas e renda fixa)
+    const alocacaoAtivos = this.calcularAlocacaoAtivosCompleta(
+      portfolio?.items || [], 
+      accounts,
+      fixedIncomePortfolio
+    );
 
-    // Gerar histórico de patrimônio (simulado baseado no valor atual)
-    const historicoPatrimonio = this.gerarHistoricoPatrimonio(patrimonioTotal);
+    // Gerar histórico de patrimônio (real ou apenas mês atual)
+    const historicoPatrimonio = this.processarHistoricoPatrimonio(netWorthData, patrimonioTotal);
 
     return {
-      userName,
+      userName: displayName,
       patrimonioTotal,
       variacaoMes,
       resumoMensal: {
@@ -143,7 +175,51 @@ class DashboardService {
       despesasPorCategoria,
       alocacaoAtivos,
       historicoPatrimonio,
+      hasPatrimonioHistory: netWorthData?.hasHistory || false,
     };
+  }
+
+  /**
+   * Processa histórico de patrimônio - usa dados reais ou apenas mês atual
+   */
+  private processarHistoricoPatrimonio(
+    netWorthData: NetWorthHistoryResponse | undefined,
+    patrimonioAtual: number
+  ): DashboardPatrimonioHistorico[] {
+    const MONTH_NAMES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const hoje = new Date();
+    
+    // Se tem histórico real, usar
+    if (netWorthData?.hasHistory && netWorthData.history.length > 0) {
+      const historico = netWorthData.history.map(item => {
+        const date = new Date(item.snapshotDate);
+        return {
+          month: MONTH_NAMES[date.getMonth()],
+          value: Number(item.netWorth) || 0,
+        };
+      });
+
+      // Adicionar mês atual se ainda não está no histórico
+      const currentMonth = MONTH_NAMES[hoje.getMonth()];
+      const lastItem = historico[historico.length - 1];
+      if (lastItem?.month !== currentMonth) {
+        historico.push({
+          month: currentMonth,
+          value: patrimonioAtual,
+        });
+      } else {
+        // Atualizar valor do mês atual
+        lastItem.value = patrimonioAtual;
+      }
+
+      return historico;
+    }
+
+    // Usuário novo: mostrar apenas o mês atual
+    return [{
+      month: MONTH_NAMES[hoje.getMonth()],
+      value: patrimonioAtual,
+    }];
   }
 
   /**
@@ -273,20 +349,31 @@ class DashboardService {
   }
 
   /**
-   * Calcula alocação de ativos completa (investimentos + contas)
+   * Calcula alocação de ativos completa (investimentos + contas + renda fixa)
    */
   private calcularAlocacaoAtivosCompleta(
     portfolioItems: PortfolioItem[], 
-    accounts: Account[]
+    accounts: Account[],
+    fixedIncomePortfolio?: FixedIncomePortfolioResponse | null
   ): DashboardAlocacaoAtivo[] {
     const tipoMap = new Map<string, number>();
 
-    // Adicionar investimentos por tipo
+    // Adicionar investimentos de renda variável por tipo
     portfolioItems.forEach(item => {
       const tipo = item.ativo?.tipo || 'Outros';
       const valorAtual = tipoMap.get(tipo) || 0;
       tipoMap.set(tipo, valorAtual + item.currentValue);
     });
+
+    // Adicionar investimentos de renda fixa POR TIPO (CDB, Tesouro, etc)
+    if (fixedIncomePortfolio?.items && fixedIncomePortfolio.items.length > 0) {
+      fixedIncomePortfolio.items.forEach(item => {
+        // Mapear o tipo do banco para nome amigável
+        const tipoAmigavel = this.mapearTipoRendaFixa(item.type);
+        const valorAtual = tipoMap.get(tipoAmigavel) || 0;
+        tipoMap.set(tipoAmigavel, valorAtual + (item.estimatedCurrentValue || item.currentAmount || item.investedAmount));
+      });
+    }
 
     // Adicionar saldo das contas
     accounts.forEach(account => {
@@ -320,29 +407,23 @@ class DashboardService {
   }
 
   /**
-   * Gera histórico de patrimônio (últimos 6 meses)
-   * Por enquanto simulado, pode ser integrado com backend futuramente
+   * Mapeia o tipo de renda fixa do banco para nome amigável
    */
-  private gerarHistoricoPatrimonio(patrimonioAtual: number): DashboardPatrimonioHistorico[] {
-    const hoje = new Date();
-    const historico: DashboardPatrimonioHistorico[] = [];
-
-    // Gerar 6 meses de histórico com variação simulada
-    for (let i = 5; i >= 0; i--) {
-      const data = new Date(hoje);
-      data.setMonth(data.getMonth() - i);
-      
-      // Variação simulada (entre -5% e +10% do valor atual por mês)
-      const fatorVariacao = 1 - (i * 0.03) + (Math.random() * 0.05 - 0.025);
-      const valor = i === 0 ? patrimonioAtual : patrimonioAtual * fatorVariacao;
-
-      historico.push({
-        month: MONTH_NAMES[data.getMonth()],
-        value: Math.max(0, Math.round(valor * 100) / 100),
-      });
-    }
-
-    return historico;
+  private mapearTipoRendaFixa(tipo: string): string {
+    const mapeamento: Record<string, string> = {
+      'CDB': 'CDB',
+      'LCI': 'LCI',
+      'LCA': 'LCA',
+      'TESOURO_SELIC': 'Tesouro Selic',
+      'TESOURO_PREFIXADO': 'Tesouro Prefixado',
+      'TESOURO_IPCA': 'Tesouro IPCA+',
+      'LC': 'LC',
+      'DEBENTURE': 'Debênture',
+      'CRI': 'CRI',
+      'CRA': 'CRA',
+      'POUPANCA': 'Poupança',
+    };
+    return mapeamento[tipo] || tipo;
   }
 }
 

@@ -2,6 +2,7 @@ import { Eye, EyeOff, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Lo
 import { useState, useEffect } from "react";
 import { LineChart, Line, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { useTheme } from "../contexts/ThemeContext";
+import { useAuth } from "../contexts/AuthContext";
 import { dashboardService, DashboardData } from "../services/dashboard.service";
 
 export default function HomeScreen() {
@@ -9,6 +10,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const { theme } = useTheme();
+  const { user } = useAuth();
 
   useEffect(() => {
     loadDashboardData();
@@ -17,7 +19,7 @@ export default function HomeScreen() {
   const loadDashboardData = async () => {
     try {
       setLoading(true);
-      const data = await dashboardService.getDashboardData();
+      const data = await dashboardService.getDashboardData(user?.name);
       setDashboardData(data);
     } catch (error) {
       console.error('Erro ao carregar dados do dashboard:', error);
@@ -27,13 +29,14 @@ export default function HomeScreen() {
   };
 
   // Valores derivados do dashboardData
-  const userName = dashboardData?.userName || 'Usuário';
+  const userName = user?.name?.split(' ')[0] || 'Usuário';
   const patrimonioTotal = dashboardData?.patrimonioTotal || 0;
   const variacaoMes = dashboardData?.variacaoMes || 0;
   const resumoMensal = dashboardData?.resumoMensal || { receitas: 0, gastos: 0, investimentos: 0 };
   const despesasPorCategoria = dashboardData?.despesasPorCategoria || [];
   const alocacaoData = dashboardData?.alocacaoAtivos || [];
   const patrimonioData = dashboardData?.historicoPatrimonio || [];
+  const hasPatrimonioHistory = dashboardData?.hasPatrimonioHistory || false;
   
   const totalGastos = resumoMensal.gastos;
   const saldoLiquido = resumoMensal.receitas - resumoMensal.gastos;
@@ -129,23 +132,24 @@ export default function HomeScreen() {
         <h3 className="mb-4">Evolução Patrimonial</h3>
         <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
           {showValues ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={patrimonioData}>
-                <XAxis
-                  dataKey="month"
-                  stroke={theme === "dark" ? "#71717a" : "#a1a1aa"}
-                  tick={{ fill: theme === "dark" ? "#71717a" : "#a1a1aa", fontSize: 12 }}
-                />
-                <YAxis
-                  stroke={theme === "dark" ? "#71717a" : "#a1a1aa"}
-                  tick={{ fill: theme === "dark" ? "#71717a" : "#a1a1aa", fontSize: 12 }}
-                  tickFormatter={(value) => `${value / 1000}k`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: theme === "dark" ? "#18181b" : "#ffffff",
-                    border: `1px solid ${theme === "dark" ? "#3f3f46" : "#e4e4e7"}`,
-                    borderRadius: "8px",
+            patrimonioData.length > 1 ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={patrimonioData}>
+                  <XAxis
+                    dataKey="month"
+                    stroke={theme === "dark" ? "#71717a" : "#a1a1aa"}
+                    tick={{ fill: theme === "dark" ? "#71717a" : "#a1a1aa", fontSize: 12 }}
+                  />
+                  <YAxis
+                    stroke={theme === "dark" ? "#71717a" : "#a1a1aa"}
+                    tick={{ fill: theme === "dark" ? "#71717a" : "#a1a1aa", fontSize: 12 }}
+                    tickFormatter={(value) => `${value / 1000}k`}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: theme === "dark" ? "#18181b" : "#ffffff",
+                      border: `1px solid ${theme === "dark" ? "#3f3f46" : "#e4e4e7"}`,
+                      borderRadius: "8px",
                     color: theme === "dark" ? "#ffffff" : "#000000",
                   }}
                   formatter={(value: number) => formatCurrency(value)}
@@ -159,6 +163,17 @@ export default function HomeScreen() {
                 />
               </LineChart>
             </ResponsiveContainer>
+            ) : (
+              // Usuário novo ou sem histórico suficiente
+              <div className={`h-[200px] flex items-center justify-center ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>
+                <div className="text-center">
+                  <TrendingUp className="w-10 h-10 mx-auto mb-3 text-emerald-500" />
+                  <p className="text-base font-medium mb-1">Patrimônio Atual</p>
+                  <p className="text-2xl font-semibold text-emerald-500 mb-2">{formatCurrency(patrimonioTotal)}</p>
+                  <p className="text-xs">O histórico será registrado mês a mês</p>
+                </div>
+              </div>
+            )
           ) : (
             <div className={`h-[200px] flex items-center justify-center ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>
               <div className="text-center">

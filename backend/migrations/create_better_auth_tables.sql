@@ -79,6 +79,10 @@ ALTER TABLE "investments" DROP CONSTRAINT IF EXISTS "fk_investments_user";
 ALTER TABLE "net_worth_history" DROP CONSTRAINT IF EXISTS "net_worth_history_user_id_fkey";
 ALTER TABLE "net_worth_history" DROP CONSTRAINT IF EXISTS "fk_net_worth_history_user";
 
+ALTER TABLE "fixed_income_investments" DROP CONSTRAINT IF EXISTS "FK_520e53decfbcc43266bcfcf5e57";
+ALTER TABLE "fixed_income_investments" DROP CONSTRAINT IF EXISTS "fixed_income_investments_user_id_fkey";
+ALTER TABLE "fixed_income_investments" DROP CONSTRAINT IF EXISTS "fk_fixed_income_user";
+
 -- 7. Migrar usuários existentes da old_users para user (BetterAuth)
 INSERT INTO "user" ("id", "name", "email", "emailVerified", "createdAt", "updatedAt", "fullName")
 SELECT 
@@ -112,6 +116,7 @@ ALTER TABLE "bank_accounts" ALTER COLUMN "user_id" TYPE TEXT;
 ALTER TABLE "transactions" ALTER COLUMN "user_id" TYPE TEXT;
 ALTER TABLE "investments" ALTER COLUMN "user_id" TYPE TEXT;
 ALTER TABLE "net_worth_history" ALTER COLUMN "user_id" TYPE TEXT;
+ALTER TABLE "fixed_income_investments" ALTER COLUMN "user_id" TYPE TEXT;
 
 -- Agora criar as FKs
 ALTER TABLE "bank_accounts" ADD CONSTRAINT "fk_bank_accounts_user" 
@@ -124,6 +129,9 @@ ALTER TABLE "investments" ADD CONSTRAINT "fk_investments_user"
     FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE CASCADE;
 
 ALTER TABLE "net_worth_history" ADD CONSTRAINT "fk_net_worth_history_user" 
+    FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE CASCADE;
+
+ALTER TABLE "fixed_income_investments" ADD CONSTRAINT "fk_fixed_income_user" 
     FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE CASCADE;
 
 -- 10. Opcional: Remover tabela old_users após confirmar que tudo funciona

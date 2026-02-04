@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Investment } from './entities/investment.entity';
@@ -74,6 +74,23 @@ export class InvestmentsService {
       purchaseDate: string;
     },
   ): Promise<Investment> {
+    // Validações
+    if (data.quantity <= 0) {
+      throw new BadRequestException('A quantidade deve ser maior que zero');
+    }
+
+    if (data.purchasePrice <= 0) {
+      throw new BadRequestException('O valor de compra deve ser maior que zero');
+    }
+
+    const purchaseDate = new Date(data.purchaseDate);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999); // Fim do dia atual
+    
+    if (purchaseDate > today) {
+      throw new BadRequestException('A data de compra não pode ser maior que a data atual');
+    }
+
     // Verificar se o ativo existe
     await this.findAtivoById(data.ativoId);
 
@@ -82,7 +99,7 @@ export class InvestmentsService {
       ativoId: data.ativoId,
       quantity: data.quantity,
       purchasePrice: data.purchasePrice,
-      purchaseDate: new Date(data.purchaseDate),
+      purchaseDate: purchaseDate,
     });
     
     const saved = await this.investmentRepository.save(investment);
@@ -101,13 +118,32 @@ export class InvestmentsService {
   ): Promise<Investment> {
     const investment = await this.findOne(id, userId);
     
+    // Validações
+    if (data.quantity !== undefined && data.quantity <= 0) {
+      throw new BadRequestException('A quantidade deve ser maior que zero');
+    }
+
+    if (data.purchasePrice !== undefined && data.purchasePrice <= 0) {
+      throw new BadRequestException('O valor de compra deve ser maior que zero');
+    }
+
+    if (data.purchaseDate) {
+      const purchaseDate = new Date(data.purchaseDate);
+      const today = new Date();
+      today.setHours(23, 59, 59, 999);
+      
+      if (purchaseDate > today) {
+        throw new BadRequestException('A data de compra não pode ser maior que a data atual');
+      }
+      investment.purchaseDate = purchaseDate;
+    }
+
     if (data.ativoId) {
       await this.findAtivoById(data.ativoId);
       investment.ativoId = data.ativoId;
     }
     if (data.quantity !== undefined) investment.quantity = data.quantity;
     if (data.purchasePrice !== undefined) investment.purchasePrice = data.purchasePrice;
-    if (data.purchaseDate) investment.purchaseDate = new Date(data.purchaseDate);
 
     await this.investmentRepository.save(investment);
     return this.findOne(id, userId);
@@ -156,6 +192,12 @@ export class InvestmentsService {
       const profitLoss = currentValue - item.totalCost;
       const averagePrice = item.totalQuantity > 0 ? item.totalCost / item.totalQuantity : 0;
 
+      // Encontrar a data da última transação
+      const lastTransaction = item.transactions.reduce((latest, t) => {
+        const tDate = new Date(t.purchaseDate);
+        return tDate > latest ? tDate : latest;
+      }, new Date(0));
+
       return {
         ativo: item.ativo,
         totalQuantity: item.totalQuantity,
@@ -166,6 +208,7 @@ export class InvestmentsService {
         profitLoss,
         profitLossPercentage: item.totalCost > 0 ? (profitLoss / item.totalCost) * 100 : 0,
         transactionCount: item.transactions.length,
+        lastTransactionDate: lastTransaction.toISOString(),
       };
     });
 

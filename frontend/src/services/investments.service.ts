@@ -35,6 +35,7 @@ export interface PortfolioItem {
   profitLoss: number;
   profitLossPercentage: number;
   transactionCount: number;
+  lastTransactionDate?: string; // Data da última transação para ordenação
 }
 
 // Resumo da carteira

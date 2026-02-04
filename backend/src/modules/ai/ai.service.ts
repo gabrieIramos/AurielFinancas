@@ -734,7 +734,8 @@ Regras:
 3. Dê sugestões práticas e personalizadas
 4. Seja amigável mas profissional
 5. Responda em português brasileiro
-6. Quando perguntado sobre ativos específicos, use os dados detalhados acima`;
+6. Quando perguntado sobre ativos específicos, use os dados detalhados acima
+7. Forneça notícias de mercado se relevante para a pergunta`;
 
     try {
       const messages = [
@@ -749,8 +750,7 @@ Regras:
       const completion = await this.groq.chat.completions.create({
         messages,
         model: 'llama-3.1-8b-instant',
-        temperature: 0.7,
-        max_tokens: 500,
+        temperature: 0.7,        
       });
 
       return { response: completion.choices[0].message.content || 'Desculpe, não consegui processar sua mensagem.' };

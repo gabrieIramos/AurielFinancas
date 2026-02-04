@@ -10,16 +10,9 @@ interface ApiResponse<T = any> {
 
 class ApiService {
   private getHeaders(): HeadersInit {
-    const headers: HeadersInit = {
+    return {
       'Content-Type': 'application/json',
     };
-
-    const token = localStorage.getItem('token');
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    return headers;
   }
 
   private handleUnauthorized(): void {
@@ -34,6 +27,7 @@ class ApiService {
     try {
       const response = await fetch(`${API_URL}${endpoint}`, {
         ...options,
+        credentials: 'include', // Envia cookies automaticamente para autenticação BetterAuth
         headers: {
           ...this.getHeaders(),
           ...options.headers,

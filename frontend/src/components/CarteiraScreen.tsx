@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react";
-import { Plus, TrendingUp, TrendingDown, Trash2, Loader2, Search, X, Calendar, Landmark, BarChart3 } from "lucide-react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Plus, TrendingUp, TrendingDown, Trash2, Loader2, Search, X, Calendar, Landmark, BarChart3, ChevronDown, ArrowUp, ArrowDown, Pencil, Check, XCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "./ui/dialog";
 import {
   AlertDialog,
@@ -18,6 +18,7 @@ import { useTheme } from "../contexts/ThemeContext";
 import {
   investmentsService,
   Ativo,
+  Investment,
   PortfolioItem,
   PortfolioSummary,
   FixedIncomeInvestment,
@@ -40,10 +41,28 @@ export default function CarteiraScreen() {
   const [saving, setSaving] = useState(false);
   const [filtroTipo, setFiltroTipo] = useState<"Todos" | "Ação" | "FII">("Todos");
   const [filtroSearch, setFiltroSearch] = useState("");
+  const [sortBy, setSortBy] = useState<"ticker" | "pm" | "percentage" | "quantity" | "lastTransaction">("ticker");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [ativoToDelete, setAtivoToDelete] = useState<PortfolioItem | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const { theme } = useTheme();
+
+  // Estados para edição de transações
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedPortfolioItem, setSelectedPortfolioItem] = useState<PortfolioItem | null>(null);
+  const [transactions, setTransactions] = useState<Investment[]>([]);
+  const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [editingTransactionId, setEditingTransactionId] = useState<string | null>(null);
+  const [editQuantity, setEditQuantity] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editDate, setEditDate] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+  const [deleteTransactionId, setDeleteTransactionId] = useState<string | null>(null);
+  const [deleteTransactionConfirmOpen, setDeleteTransactionConfirmOpen] = useState(false);
 
   // Form states para Renda Variável
   const [tipoTransacao, setTipoTransacao] = useState<"compra" | "venda">("compra");
@@ -67,6 +86,7 @@ export default function CarteiraScreen() {
   const [fixedIncomeToDelete, setFixedIncomeToDelete] = useState<FixedIncomeInvestment | null>(null);
   const [deleteFixedIncomeConfirmOpen, setDeleteFixedIncomeConfirmOpen] = useState(false);
   const [filtroTipoFixa, setFiltroTipoFixa] = useState<string>("Todos");
+  const [fixedIncomeErrorMessage, setFixedIncomeErrorMessage] = useState<string | null>(null);
 
   // Form states para Renda Fixa
   const [fixedIncomeName, setFixedIncomeName] = useState("");
@@ -80,17 +100,21 @@ export default function CarteiraScreen() {
   const [fixedIncomeNotes, setFixedIncomeNotes] = useState("");
 
   const searchRef = useRef<HTMLDivElement>(null);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   // Carregar dados
   useEffect(() => {
     loadData();
   }, []);
 
-  // Fechar sugestões ao clicar fora
+  // Fechar sugestões e dropdown ao clicar fora
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
+      }
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+        setShowSortDropdown(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -173,13 +197,58 @@ export default function CarteiraScreen() {
     setNovoPreco("");
   };
 
-  const portfolioFiltrado = portfolio.filter((item) => {
-    const matchTipo = filtroTipo === "Todos" || item.ativo.tipo === filtroTipo;
-    const matchSearch = filtroSearch === "" || 
-      item.ativo.ticker.toLowerCase().includes(filtroSearch.toLowerCase()) ||
-      item.ativo.nome.toLowerCase().includes(filtroSearch.toLowerCase());
-    return matchTipo && matchSearch;
-  });
+  const portfolioFiltrado = useMemo(() => {
+    // Primeiro filtra
+    const filtered = portfolio.filter((item) => {
+      const matchTipo = filtroTipo === "Todos" || item.ativo.tipo === filtroTipo;
+      const matchSearch = filtroSearch === "" || 
+        item.ativo.ticker.toLowerCase().includes(filtroSearch.toLowerCase()) ||
+        item.ativo.nome.toLowerCase().includes(filtroSearch.toLowerCase());
+      return matchTipo && matchSearch;
+    });
+
+    // Depois ordena
+    return filtered.sort((a, b) => {
+      let comparison = 0;
+      
+      switch (sortBy) {
+        case "ticker":
+          comparison = a.ativo.ticker.localeCompare(b.ativo.ticker);
+          break;
+        case "pm":
+          comparison = a.averagePrice - b.averagePrice;
+          break;
+        case "percentage":
+          comparison = a.profitLossPercentage - b.profitLossPercentage;
+          break;
+        case "quantity":
+          comparison = a.totalQuantity - b.totalQuantity;
+          break;
+        case "lastTransaction":
+          // Assumindo que lastTransactionDate existe no item, caso contrário usa a data de criação
+          const dateA = a.lastTransactionDate ? new Date(a.lastTransactionDate).getTime() : 0;
+          const dateB = b.lastTransactionDate ? new Date(b.lastTransactionDate).getTime() : 0;
+          comparison = dateA - dateB;
+          break;
+        default:
+          comparison = 0;
+      }
+
+      return sortOrder === "asc" ? comparison : -comparison;
+    });
+  }, [portfolio, filtroTipo, filtroSearch, sortBy, sortOrder]);
+
+  const sortOptions = [
+    { value: "ticker", label: "Ticker" },
+    { value: "pm", label: "Preço Médio" },
+    { value: "percentage", label: "% Ganho/Perda" },
+    { value: "quantity", label: "Quantidade" },
+    { value: "lastTransaction", label: "Última Transação" },
+  ] as const;
+
+  const getSortLabel = () => {
+    return sortOptions.find(opt => opt.value === sortBy)?.label || "Ordenar";
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -188,11 +257,48 @@ export default function CarteiraScreen() {
     }).format(value);
   };
 
+  // Validações em tempo real - Renda Variável
+  const validateQuantidade = (value: string): string | null => {
+    if (!value) return null;
+    const num = parseFloat(value);
+    if (num <= 0) return "A quantidade deve ser maior que zero";
+    return null;
+  };
+
+  const validatePreco = (value: string): string | null => {
+    if (!value) return null;
+    const num = parseFloat(value);
+    if (num <= 0) return "O valor deve ser maior que zero";
+    return null;
+  };
+
+  const validateDataCompra = (value: string): string | null => {
+    if (!value) return null;
+    const dataCompra = new Date(value);
+    const hoje = new Date();
+    hoje.setHours(23, 59, 59, 999);
+    if (dataCompra > hoje) return "A data não pode ser maior que hoje";
+    return null;
+  };
+
+  // Erros de validação em tempo real
+  const quantidadeError = validateQuantidade(novaQuantidade);
+  const precoError = validatePreco(novoPreco);
+  const dataError = validateDataCompra(dataTransacao);
+  const hasValidationErrors = !!(quantidadeError || precoError || dataError);
+
   const handleAdicionarTransacao = async () => {
     if (!selectedAtivo || !novaQuantidade || !novoPreco || !dataTransacao) {
+      setErrorMessage("Preencha todos os campos obrigatórios");
       return;
     }
 
+    if (hasValidationErrors) {
+      setErrorMessage(quantidadeError || precoError || dataError);
+      return;
+    }
+
+    setErrorMessage(null);
     setSaving(true);
     try {
       const response = await investmentsService.create({
@@ -202,15 +308,20 @@ export default function CarteiraScreen() {
         purchaseDate: dataTransacao,
       });
 
-      if (response.data) {
-        await loadData();
+      if (response.error) {
+        setErrorMessage(response.error);
+        return;
       }
 
-      // Reset form
-      resetForm();
-      setDialogOpen(false);
+      if (response.data) {
+        await loadData();
+        // Reset form
+        resetForm();
+        setDialogOpen(false);
+      }
     } catch (error) {
       console.error("Erro ao adicionar transação:", error);
+      setErrorMessage("Erro ao adicionar transação. Tente novamente.");
     } finally {
       setSaving(false);
     }
@@ -224,6 +335,7 @@ export default function CarteiraScreen() {
     setNovaQuantidade("");
     setNovoPreco("");
     setDataTransacao(new Date().toISOString().split('T')[0]);
+    setErrorMessage(null);
   };
 
   const handleOpenDeleteConfirm = (item: PortfolioItem) => {
@@ -251,6 +363,129 @@ export default function CarteiraScreen() {
     }
   };
 
+  // ========== FUNÇÕES EDIÇÃO DE TRANSAÇÕES ==========
+
+  const handleOpenEditDialog = async (item: PortfolioItem) => {
+    setSelectedPortfolioItem(item);
+    setEditDialogOpen(true);
+    setLoadingTransactions(true);
+    setEditError(null);
+    
+    try {
+      const response = await investmentsService.getAll();
+      if (response.data) {
+        const ativoTransactions = response.data
+          .filter(t => t.ativoId === item.ativo.id)
+          .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime());
+        setTransactions(ativoTransactions);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar transações:", error);
+      setEditError("Erro ao carregar transações");
+    } finally {
+      setLoadingTransactions(false);
+    }
+  };
+
+  const handleStartEdit = (transaction: Investment) => {
+    setEditingTransactionId(transaction.id);
+    setEditQuantity(Math.abs(transaction.quantity).toString());
+    setEditPrice(transaction.purchasePrice.toString());
+    setEditDate(new Date(transaction.purchaseDate).toISOString().split('T')[0]);
+    setEditError(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingTransactionId(null);
+    setEditQuantity("");
+    setEditPrice("");
+    setEditDate("");
+    setEditError(null);
+  };
+
+  const handleSaveEdit = async (transactionId: string, originalQuantity: number) => {
+    // Validações
+    const qtyError = validateQuantidade(editQuantity);
+    const priceError = validatePreco(editPrice);
+    const dateError = validateDataCompra(editDate);
+    
+    if (qtyError || priceError || dateError) {
+      setEditError(qtyError || priceError || dateError);
+      return;
+    }
+
+    setSavingEdit(true);
+    setEditError(null);
+
+    try {
+      // Manter o sinal da quantidade original (negativo para vendas)
+      const newQuantity = originalQuantity < 0 
+        ? -Math.abs(parseFloat(editQuantity)) 
+        : parseFloat(editQuantity);
+
+      const response = await investmentsService.update(transactionId, {
+        quantity: newQuantity,
+        purchasePrice: parseFloat(editPrice),
+        purchaseDate: editDate,
+      });
+
+      if (response.error) {
+        setEditError(response.error);
+        return;
+      }
+
+      // Atualizar lista de transações
+      setTransactions(prev => prev.map(t => 
+        t.id === transactionId 
+          ? { ...t, quantity: newQuantity, purchasePrice: parseFloat(editPrice), purchaseDate: editDate }
+          : t
+      ));
+
+      // Recarregar dados da carteira
+      await loadData();
+      handleCancelEdit();
+    } catch (error) {
+      console.error("Erro ao salvar edição:", error);
+      setEditError("Erro ao salvar alterações. Tente novamente.");
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleOpenDeleteTransaction = (transactionId: string) => {
+    setDeleteTransactionId(transactionId);
+    setDeleteTransactionConfirmOpen(true);
+  };
+
+  const handleDeleteTransaction = async () => {
+    if (!deleteTransactionId) return;
+
+    try {
+      await investmentsService.delete(deleteTransactionId);
+      setTransactions(prev => prev.filter(t => t.id !== deleteTransactionId));
+      await loadData();
+      
+      // Se não houver mais transações, fechar o modal
+      if (transactions.length <= 1) {
+        setEditDialogOpen(false);
+        setSelectedPortfolioItem(null);
+      }
+    } catch (error) {
+      console.error("Erro ao excluir transação:", error);
+    } finally {
+      setDeleteTransactionConfirmOpen(false);
+      setDeleteTransactionId(null);
+    }
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditDialogOpen(false);
+    setSelectedPortfolioItem(null);
+    setTransactions([]);
+    setEditingTransactionId(null);
+    setEditError(null);
+  };
+
   // ========== FUNÇÕES RENDA FIXA ==========
 
   const resetFixedIncomeForm = () => {
@@ -263,13 +498,52 @@ export default function CarteiraScreen() {
     setFixedIncomePurchaseDate(new Date().toISOString().split('T')[0]);
     setFixedIncomeMaturityDate("");
     setFixedIncomeNotes("");
+    setFixedIncomeErrorMessage(null);
   };
+
+  // Validações em tempo real para renda fixa
+  const validateFixedAmount = (value: string): string | null => {
+    if (!value) return null;
+    const num = parseFloat(value);
+    if (num <= 0) return "O valor deve ser maior que zero";
+    return null;
+  };
+
+  const validateFixedRate = (value: string): string | null => {
+    if (!value) return null;
+    const num = parseFloat(value);
+    if (num <= 0) return "A taxa deve ser maior que zero";
+    return null;
+  };
+
+  const validateFixedPurchaseDate = (value: string): string | null => {
+    if (!value) return null;
+    const selectedDate = new Date(value);
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    if (selectedDate > today) return "Data não pode ser futura";
+    return null;
+  };
+
+  // Erros calculados para renda fixa
+  const fixedAmountError = validateFixedAmount(fixedIncomeAmount);
+  const fixedRateError = validateFixedRate(fixedIncomeRate);
+  const fixedPurchaseDateError = validateFixedPurchaseDate(fixedIncomePurchaseDate);
+  const hasFixedIncomeValidationErrors = !!(fixedAmountError || fixedRateError || fixedPurchaseDateError);
 
   const handleAdicionarRendaFixa = async () => {
     if (!fixedIncomeName || !fixedIncomeAmount || !fixedIncomeRate || !fixedIncomePurchaseDate) {
+      setFixedIncomeErrorMessage("Preencha todos os campos obrigatórios");
       return;
     }
 
+    // Verificar erros de validação
+    if (hasFixedIncomeValidationErrors) {
+      setFixedIncomeErrorMessage("Corrija os erros de validação antes de salvar");
+      return;
+    }
+
+    setFixedIncomeErrorMessage(null);
     setSaving(true);
     try {
       const response = await investmentsService.createFixedIncome({
@@ -284,14 +558,19 @@ export default function CarteiraScreen() {
         notes: fixedIncomeNotes || undefined,
       });
 
-      if (response.data) {
-        await loadData();
+      if (response.error) {
+        setFixedIncomeErrorMessage(response.error);
+        return;
       }
 
-      resetFixedIncomeForm();
-      setFixedIncomeDialogOpen(false);
+      if (response.data) {
+        await loadData();
+        resetFixedIncomeForm();
+        setFixedIncomeDialogOpen(false);
+      }
     } catch (error) {
       console.error("Erro ao adicionar renda fixa:", error);
+      setFixedIncomeErrorMessage("Erro ao adicionar investimento. Tente novamente.");
     } finally {
       setSaving(false);
     }
@@ -545,11 +824,13 @@ export default function CarteiraScreen() {
                     <Input
                       id="dataTransacao"
                       type="date"
+                      max={new Date().toISOString().split('T')[0]}
                       value={dataTransacao}
                       onChange={(e) => setDataTransacao(e.target.value)}
-                      className={`pl-10 ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
+                      className={`pl-10 ${dataError ? 'border-red-500' : ''} ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
                     />
                   </div>
+                  {dataError && <p className="text-xs text-red-500 mt-1">{dataError}</p>}
                 </div>
 
                 {/* Quantidade e Preço em linha */}
@@ -559,23 +840,28 @@ export default function CarteiraScreen() {
                     <Input
                       id="quantidade"
                       type="number"
+                      min="0.01"
+                      step="0.01"
                       placeholder="100"
                       value={novaQuantidade}
                       onChange={(e) => setNovaQuantidade(e.target.value)}
-                      className={`mt-1 ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
+                      className={`mt-1 ${quantidadeError ? 'border-red-500' : ''} ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
                     />
+                    {quantidadeError && <p className="text-xs text-red-500 mt-1">{quantidadeError}</p>}
                   </div>
                   <div>
                     <Label htmlFor="preco" className="text-xs">Preço Unitário</Label>
                     <Input
                       id="preco"
                       type="number"
+                      min="0.01"
                       step="0.01"
                       placeholder="28.50"
                       value={novoPreco}
                       onChange={(e) => setNovoPreco(e.target.value)}
-                      className={`mt-1 ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
+                      className={`mt-1 ${precoError ? 'border-red-500' : ''} ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
                     />
+                    {precoError && <p className="text-xs text-red-500 mt-1">{precoError}</p>}
                   </div>
                 </div>
 
@@ -591,6 +877,13 @@ export default function CarteiraScreen() {
                     <p className={`text-xl font-semibold ${tipoTransacao === "compra" ? "text-emerald-500" : "text-red-500"}`}>
                       {formatCurrency(parseFloat(novaQuantidade) * parseFloat(novoPreco))}
                     </p>
+                  </div>
+                )}
+
+                {/* Mensagem de Erro */}
+                {errorMessage && (
+                  <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                    <p className="text-sm text-red-500 text-center">{errorMessage}</p>
                   </div>
                 )}
 
@@ -657,12 +950,14 @@ export default function CarteiraScreen() {
                       <Input
                         id="fixedIncomeAmount"
                         type="number"
+                        min="0.01"
                         step="0.01"
                         placeholder="10000"
                         value={fixedIncomeAmount}
                         onChange={(e) => setFixedIncomeAmount(e.target.value)}
-                        className={`h-9 text-sm ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
+                        className={`h-9 text-sm ${fixedAmountError ? 'border-red-500' : ''} ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
                       />
+                      {fixedAmountError && <p className="text-xs text-red-500 mt-1">{fixedAmountError}</p>}
                     </div>
                     <div>
                       <Label htmlFor="fixedIncomeInstitution" className="text-[10px] text-zinc-500">Instituição</Label>
@@ -699,12 +994,14 @@ export default function CarteiraScreen() {
                       <Input
                         id="fixedIncomeRate"
                         type="number"
+                        min="0.01"
                         step="0.01"
                         placeholder={fixedIncomeIndexer === 'CDI' ? "120" : "12.5"}
                         value={fixedIncomeRate}
                         onChange={(e) => setFixedIncomeRate(e.target.value)}
-                        className={`h-9 text-sm ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
+                        className={`h-9 text-sm ${fixedRateError ? 'border-red-500' : ''} ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
                       />
+                      {fixedRateError && <p className="text-xs text-red-500 mt-1">{fixedRateError}</p>}
                     </div>
                   </div>
 
@@ -715,10 +1012,12 @@ export default function CarteiraScreen() {
                       <Input
                         id="fixedIncomePurchaseDate"
                         type="date"
+                        max={new Date().toISOString().split('T')[0]}
                         value={fixedIncomePurchaseDate}
                         onChange={(e) => setFixedIncomePurchaseDate(e.target.value)}
-                        className={`h-9 text-sm ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
+                        className={`h-9 text-sm ${fixedPurchaseDateError ? 'border-red-500' : ''} ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
                       />
+                      {fixedPurchaseDateError && <p className="text-xs text-red-500 mt-1">{fixedPurchaseDateError}</p>}
                     </div>
                     <div>
                       <Label htmlFor="fixedIncomeMaturityDate" className="text-[10px] text-zinc-500">Vencimento</Label>
@@ -786,10 +1085,24 @@ export default function CarteiraScreen() {
                     </div>
                   )}
 
+                  {/* Erros de validação em tempo real */}
+                  {hasFixedIncomeValidationErrors && (
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                      <p className="text-xs text-red-500">Corrija os erros de validação acima</p>
+                    </div>
+                  )}
+
+                  {/* Mensagem de Erro */}
+                  {fixedIncomeErrorMessage && (
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                      <p className="text-sm text-red-500 text-center">{fixedIncomeErrorMessage}</p>
+                    </div>
+                  )}
+
                   {/* Botão de Confirmar */}
                   <Button
                     onClick={handleAdicionarRendaFixa}
-                    disabled={saving || !fixedIncomeName || !fixedIncomeAmount || !fixedIncomeRate}
+                    disabled={saving || !fixedIncomeName || !fixedIncomeAmount || !fixedIncomeRate || hasFixedIncomeValidationErrors}
                     className="w-full h-10 bg-amber-600 text-white hover:bg-amber-700 text-sm"
                   >
                     {saving ? (
@@ -885,7 +1198,7 @@ export default function CarteiraScreen() {
             </div>
 
             {/* Campo de Busca */}
-            <div className="relative mb-6">
+            <div className="relative mb-4">
               {!filtroSearch && <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />}
               <Input
                 placeholder="Buscar por ticker ou nome..."
@@ -901,6 +1214,61 @@ export default function CarteiraScreen() {
                   <X className={`w-4 h-4 ${theme === "dark" ? "text-zinc-500 hover:text-zinc-300" : "text-zinc-400 hover:text-zinc-600"}`} />
                 </button>
               )}
+            </div>
+
+            {/* Filtro de Ordenação */}
+            <div className="flex items-center gap-2 mb-6">
+              <div ref={sortDropdownRef} className="relative flex-1">
+                <button
+                  onClick={() => setShowSortDropdown(!showSortDropdown)}
+                  className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg text-sm transition-colors ${theme === "dark" 
+                    ? "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800" 
+                    : "bg-zinc-50 border border-zinc-200 text-zinc-700 hover:bg-zinc-100"}`}
+                >
+                  <span>Ordenar por: <span className="font-medium">{getSortLabel()}</span></span>
+                  <ChevronDown className={`w-4 h-4 transition-transform ${showSortDropdown ? "rotate-180" : ""}`} />
+                </button>
+
+                {showSortDropdown && (
+                  <div className={`absolute z-50 w-full mt-1 rounded-lg shadow-lg overflow-hidden ${theme === "dark" 
+                    ? "bg-zinc-800 border border-zinc-700" 
+                    : "bg-white border border-zinc-200"}`}
+                  >
+                    {sortOptions.map((option) => (
+                      <button
+                        key={option.value}
+                        onClick={() => {
+                          setSortBy(option.value);
+                          setShowSortDropdown(false);
+                        }}
+                        className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
+                          sortBy === option.value 
+                            ? "bg-emerald-600 text-white" 
+                            : theme === "dark" 
+                              ? "text-zinc-300 hover:bg-zinc-700" 
+                              : "text-zinc-700 hover:bg-zinc-100"
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <button
+                onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
+                className={`p-2.5 rounded-lg transition-colors ${theme === "dark" 
+                  ? "bg-zinc-900 border border-zinc-800 text-zinc-300 hover:bg-zinc-800" 
+                  : "bg-zinc-50 border border-zinc-200 text-zinc-700 hover:bg-zinc-100"}`}
+                title={sortOrder === "asc" ? "Ordem crescente" : "Ordem decrescente"}
+              >
+                {sortOrder === "asc" ? (
+                  <ArrowUp className="w-4 h-4" />
+                ) : (
+                  <ArrowDown className="w-4 h-4" />
+                )}
+              </button>
             </div>
           </>
         )}
@@ -1010,12 +1378,12 @@ export default function CarteiraScreen() {
                       </p>
                     </div>
                     <button
-                      onClick={() => handleOpenDeleteConfirm(item)}
+                      onClick={() => handleOpenEditDialog(item)}
                       className={`p-1.5 rounded-full ${theme === "dark" ? "hover:bg-zinc-800" : "hover:bg-zinc-200"} transition-colors`}
-                      title="Remover todas as transações deste ativo"
+                      title="Editar transações"
                     >
-                      <Trash2 className="w-4 h-4 text-red-400" />
-                    </button>
+                      <Pencil className="w-4 h-4 text-blue-400" />
+                    </button>                    
                   </div>
                 </div>
 
@@ -1170,6 +1538,221 @@ export default function CarteiraScreen() {
           )}
         </div>
       )}
+
+      {/* Dialog de Edição de Transações */}
+      <Dialog open={editDialogOpen} onOpenChange={(open: boolean) => !open && handleCloseEditDialog()}>
+        <DialogContent className={`${theme === "dark" ? "bg-zinc-900 border-zinc-800 text-white" : "bg-white border-zinc-200 text-black"} !w-[95vw] !max-w-[95vw] sm:!max-w-[600px] max-h-[85vh] overflow-y-auto`}>
+          <DialogHeader>
+            <DialogTitle className="text-lg flex items-center gap-2">
+              <span>Transações - {selectedPortfolioItem?.ativo.ticker}</span>
+              <span className={`px-2 py-0.5 text-xs rounded ${theme === "dark" ? "bg-zinc-800 text-zinc-300" : "bg-zinc-200 text-zinc-700"}`}>
+                {selectedPortfolioItem?.ativo.tipo}
+              </span>
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="mt-4">
+            {loadingTransactions ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 animate-spin text-emerald-600" />
+              </div>
+            ) : transactions.length === 0 ? (
+              <p className={`text-center py-8 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
+                Nenhuma transação encontrada
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {transactions.map((transaction) => {
+                  const isEditing = editingTransactionId === transaction.id;
+                  const isCompra = transaction.quantity > 0;
+                  
+                  return (
+                    <div 
+                      key={transaction.id} 
+                      className={`p-4 rounded-lg border ${
+                        isEditing 
+                          ? "border-blue-500" 
+                          : theme === "dark" ? "border-zinc-800 bg-zinc-800/50" : "border-zinc-200 bg-zinc-50"
+                      }`}
+                    >
+                      {isEditing ? (
+                        // Modo de edição
+                        <div className="space-y-3">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className={`px-2 py-1 text-xs rounded ${
+                              isCompra 
+                                ? "bg-emerald-500/20 text-emerald-500" 
+                                : "bg-red-500/20 text-red-500"
+                            }`}>
+                              {isCompra ? "Compra" : "Venda"}
+                            </span>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={handleCancelEdit}
+                                className={`p-1.5 rounded ${theme === "dark" ? "hover:bg-zinc-700" : "hover:bg-zinc-200"}`}
+                                title="Cancelar"
+                              >
+                                <XCircle className="w-4 h-4 text-zinc-400" />
+                              </button>
+                              <button
+                                onClick={() => handleSaveEdit(transaction.id, transaction.quantity)}
+                                disabled={savingEdit}
+                                className="p-1.5 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+                                title="Salvar"
+                              >
+                                {savingEdit ? (
+                                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                ) : (
+                                  <Check className="w-4 h-4 text-white" />
+                                )}
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Data em linha separada no mobile */}
+                          <div>
+                            <Label className="text-xs">Data</Label>
+                            <Input
+                              type="date"
+                              value={editDate}
+                              max={new Date().toISOString().split('T')[0]}
+                              onChange={(e) => setEditDate(e.target.value)}
+                              className={`mt-1 h-9 text-sm w-full ${theme === "dark" ? "bg-zinc-700 border-zinc-600" : "bg-white border-zinc-300"}`}
+                            />
+                          </div>
+
+                          {/* Quantidade e Preço lado a lado */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="text-xs">Quantidade</Label>
+                              <Input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={editQuantity}
+                                onChange={(e) => setEditQuantity(e.target.value)}
+                                className={`mt-1 h-9 text-sm ${theme === "dark" ? "bg-zinc-700 border-zinc-600" : "bg-white border-zinc-300"}`}
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs">Preço (R$)</Label>
+                              <Input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                value={editPrice}
+                                onChange={(e) => setEditPrice(e.target.value)}
+                                className={`mt-1 h-9 text-sm ${theme === "dark" ? "bg-zinc-700 border-zinc-600" : "bg-white border-zinc-300"}`}
+                              />
+                            </div>
+                          </div>
+
+                          {editError && (
+                            <p className="text-xs text-red-500 mt-2">{editError}</p>
+                          )}
+                        </div>
+                      ) : (
+                        // Modo de visualização
+                        <div>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 text-xs rounded ${
+                                isCompra 
+                                  ? "bg-emerald-500/20 text-emerald-500" 
+                                  : "bg-red-500/20 text-red-500"
+                              }`}>
+                                {isCompra ? "Compra" : "Venda"}
+                              </span>
+                              <span className={`text-sm ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
+                                {new Date(transaction.purchaseDate).toLocaleDateString('pt-BR')}
+                              </span>
+                            </div>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleStartEdit(transaction)}
+                                className={`p-1.5 rounded ${theme === "dark" ? "hover:bg-zinc-700" : "hover:bg-zinc-200"}`}
+                                title="Editar"
+                              >
+                                <Pencil className="w-4 h-4 text-blue-400" />
+                              </button>
+                              <button
+                                onClick={() => handleOpenDeleteTransaction(transaction.id)}
+                                className={`p-1.5 rounded ${theme === "dark" ? "hover:bg-zinc-700" : "hover:bg-zinc-200"}`}
+                                title="Excluir transação"
+                              >
+                                <Trash2 className="w-4 h-4 text-red-400" />
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-3">
+                            <div>
+                              <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-500"}`}>Quantidade</p>
+                              <p className="text-sm font-medium">{Math.abs(transaction.quantity)}</p>
+                            </div>
+                            <div>
+                              <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-500"}`}>Preço Unit.</p>
+                              <p className="text-sm font-medium">{formatCurrency(transaction.purchasePrice)}</p>
+                            </div>
+                            <div>
+                              <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-500"}`}>Total</p>
+                              <p className={`text-sm font-medium ${isCompra ? "text-emerald-500" : "text-red-500"}`}>
+                                {formatCurrency(Math.abs(transaction.quantity) * transaction.purchasePrice)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Resumo */}
+            {transactions.length > 0 && (
+              <div className={`mt-4 p-4 rounded-lg ${theme === "dark" ? "bg-zinc-800" : "bg-zinc-100"}`}>
+                <div className="flex justify-between items-center">
+                  <span className={`text-sm ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
+                    Total de transações: {transactions.length}
+                  </span>
+                  <span className="text-sm font-medium">
+                    Qtd. Total: {Number(transactions.reduce((acc, t) => acc + Number(t.quantity), 0)).toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de Confirmação de Exclusão de Transação Individual */}
+      <AlertDialog open={deleteTransactionConfirmOpen} onOpenChange={setDeleteTransactionConfirmOpen}>
+        <AlertDialogContent className={theme === "dark" ? "bg-zinc-900 border-zinc-800" : "bg-white border-zinc-200"}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className={theme === "dark" ? "text-white" : "text-black"}>
+              Excluir esta transação?
+            </AlertDialogTitle>
+            <AlertDialogDescription className={theme === "dark" ? "text-zinc-400" : "text-zinc-600"}>
+              Esta ação é irreversível. A transação será removida permanentemente do seu histórico.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              className={theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white hover:bg-zinc-700" : "bg-zinc-100 border-zinc-200 text-black hover:bg-zinc-200"}
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteTransaction}
+              style={{ backgroundColor: "#dc2626" }}
+              className="!text-white hover:opacity-90"
+            >
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Dialog de Confirmação de Exclusão - Renda Variável */}
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

@@ -1,13 +1,13 @@
 import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Request } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { BetterAuthGuard } from '../auth/guards/better-auth.guard';
 import { InvestmentsService } from './investments.service';
 import { BrapiService } from './services/brapi.service';
 import { FixedIncomeService, CreateFixedIncomeDto, UpdateFixedIncomeDto } from './services/fixed-income.service';
 
 @ApiTags('investments')
 @Controller('investments')
-@UseGuards(JwtAuthGuard)
+@UseGuards(BetterAuthGuard)
 @ApiBearerAuth()
 export class InvestmentsController {
   constructor(

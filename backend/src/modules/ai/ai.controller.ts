@@ -1,6 +1,6 @@
 import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
 import { AiService } from './ai.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { BetterAuthGuard } from '../auth/guards/better-auth.guard';
 
 interface FinancialKPIs {
   totalIncome: number;
@@ -65,7 +65,7 @@ interface AIInitialInsights {
 }
 
 @Controller('ai')
-@UseGuards(JwtAuthGuard)
+@UseGuards(BetterAuthGuard)
 export class AiController {
   constructor(private readonly aiService: AiService) {}
 

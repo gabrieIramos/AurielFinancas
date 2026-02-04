@@ -192,14 +192,11 @@ class TransactionsService {
     formData.append('bankCode', bankCode);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    const token = localStorage.getItem('token');
 
     try {
       const response = await fetch(`${API_URL}/transactions/import/preview`, {
         method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: 'include', // Envia cookies para autenticação BetterAuth
         body: formData,
       });
 
@@ -233,14 +230,11 @@ class TransactionsService {
     formData.append('bankCode', bankCode);
 
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-    const token = localStorage.getItem('token');
 
     try {
       const response = await fetch(`${API_URL}/transactions/import`, {
         method: 'POST',
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
+        credentials: 'include', // Envia cookies para autenticação BetterAuth
         body: formData,
       });
 

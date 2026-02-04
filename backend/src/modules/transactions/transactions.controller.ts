@@ -15,12 +15,12 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { TransactionsService } from './transactions.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { BetterAuthGuard } from '../auth/guards/better-auth.guard';
 import { ImportService, SupportedBankCode } from './services/import.service';
 import type { Multer } from 'multer';
 
 @Controller('transactions')
-@UseGuards(JwtAuthGuard)
+@UseGuards(BetterAuthGuard)
 export class TransactionsController {
   constructor(
     private readonly transactionsService: TransactionsService,
