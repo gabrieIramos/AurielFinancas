@@ -70,14 +70,17 @@ export default function PerfilScreen() {
       // Exportar Renda Variável
       if (type === 'variable' || type === 'all') {
         const portfolioResponse = await investmentsService.getPortfolio();
+        const transactionsResponse = await investmentsService.getAll();
         
         if (portfolioResponse.error) {
           throw new Error(portfolioResponse.error);
         }
         
         const portfolioItems = portfolioResponse.data?.items || [];
+        const transactions = transactionsResponse.data || [];
 
         if (portfolioItems.length > 0) {
+          // Aba 1: Carteira Consolidada
           const variableData = portfolioItems.map((item: PortfolioItem) => ({            
             'Ticker': item.ativo.ticker,
             'Tipo': item.ativo.tipo,
@@ -108,6 +111,35 @@ export default function PerfilScreen() {
           ];
 
           XLSX.utils.book_append_sheet(workbook, wsVariable, 'Renda Variável');
+
+          // Aba 2: Transações Detalhadas (com corretora)
+          if (transactions.length > 0) {
+            const transactionsData = transactions.map((t) => ({
+              'Data': new Date(t.purchaseDate).toLocaleDateString('pt-BR'),
+              'Tipo': Number(t.quantity) >= 0 ? 'Compra' : 'Venda',
+              'Ticker': t.ativo?.ticker || '-',
+              'Nome': t.ativo?.nome || '-',
+              'Quantidade': Math.abs(Number(t.quantity)),
+              'Preço (R$)': Number(Number(t.purchasePrice || 0).toFixed(2)),
+              'Total (R$)': Number((Math.abs(Number(t.quantity)) * Number(t.purchasePrice || 0)).toFixed(2)),
+              'Corretora': t.broker || '-',
+            }));
+
+            const wsTransactions = XLSX.utils.json_to_sheet(transactionsData);
+            
+            wsTransactions['!cols'] = [
+              { wch: 12 }, // Data
+              { wch: 10 }, // Tipo
+              { wch: 10 }, // Ticker
+              { wch: 25 }, // Nome
+              { wch: 12 }, // Quantidade
+              { wch: 15 }, // Preço
+              { wch: 15 }, // Total
+              { wch: 20 }, // Corretora
+            ];
+
+            XLSX.utils.book_append_sheet(workbook, wsTransactions, 'Transações RV');
+          }
         }
       }
 

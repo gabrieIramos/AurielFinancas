@@ -1,5 +1,5 @@
 import { transactionsService, Transaction } from './transactions.service';
-import { investmentsService, PortfolioItem, FixedIncomePortfolioResponse } from './investments.service';
+import { investmentsService, PortfolioItem, FixedIncomePortfolioResponse, Investment, FixedIncomeInvestment } from './investments.service';
 import { accountsService, Account } from './accounts.service';
 import { netWorthService, NetWorthHistoryResponse } from './networth.service';
 
@@ -97,12 +97,13 @@ class DashboardService {
     const displayName = userName?.split(' ')[0] || 'Usuário';
 
     // Carregar dados em paralelo (incluindo histórico de patrimônio)
-    const [transactionsResult, portfolioResult, fixedIncomeResult, accountsResult, netWorthResult] = await Promise.all([
+    const [transactionsResult, portfolioResult, fixedIncomeResult, accountsResult, netWorthResult, investmentTransactionsResult] = await Promise.all([
       transactionsService.getAll(),
       investmentsService.getPortfolio(),
       investmentsService.getFixedIncomePortfolio(),
       accountsService.getAll(),
       netWorthService.getHistory(12),
+      investmentsService.getAll(), // Buscar transações de renda variável
     ]);
 
     const transactions = transactionsResult.data || [];
@@ -110,6 +111,7 @@ class DashboardService {
     const fixedIncomePortfolio = fixedIncomeResult.data;
     const accounts = accountsResult.data || [];
     const netWorthData = netWorthResult.data;
+    const investmentTransactions = investmentTransactionsResult.data || [];
 
     // DEBUG
     console.log('=== DEBUG DASHBOARD ===');
@@ -149,7 +151,7 @@ class DashboardService {
     }
 
     // Calcular valor investido no mês (transações de investimento)
-    const investimentosNoMes = this.calcularInvestimentosNoMes();
+    const investimentosNoMes = this.calcularInvestimentosNoMes(investmentTransactions, fixedIncomePortfolio?.items || []);
 
     // Calcular despesas por categoria
     const despesasPorCategoria = this.calcularDespesasPorCategoria(transactions);
@@ -254,11 +256,43 @@ class DashboardService {
 
   /**
    * Calcula o valor investido no mês atual
-   * (Por enquanto retorna 0, pode ser expandido para buscar do backend)
+   * Considera compras de renda variável e aportes em renda fixa do mês corrente
    */
-  private calcularInvestimentosNoMes(): number {
-    // TODO: Implementar quando houver endpoint para buscar investimentos do mês
-    return 0;
+  private calcularInvestimentosNoMes(
+    investmentTransactions: Investment[],
+    fixedIncomeItems: FixedIncomeInvestment[]
+  ): number {
+    const hoje = new Date();
+    const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+    primeiroDiaMes.setHours(0, 0, 0, 0);
+    
+    let totalInvestidoNoMes = 0;
+
+    // Calcular investimentos em Renda Variável (apenas compras, não vendas)
+    investmentTransactions.forEach(inv => {
+      const [year, month, day] = inv.purchaseDate.split('T')[0].split('-').map(Number);
+      const dataCompra = new Date(year, month - 1, day, 12, 0, 0);
+      
+      if (dataCompra >= primeiroDiaMes && dataCompra <= hoje) {
+        // Apenas compras (quantidade positiva)
+        const quantidade = Number(inv.quantity);
+        if (quantidade > 0) {
+          totalInvestidoNoMes += quantidade * Number(inv.purchasePrice);
+        }
+      }
+    });
+
+    // Calcular investimentos em Renda Fixa feitos no mês
+    fixedIncomeItems.forEach(fi => {
+      const [year, month, day] = fi.purchaseDate.split('T')[0].split('-').map(Number);
+      const dataCompra = new Date(year, month - 1, day, 12, 0, 0);
+      
+      if (dataCompra >= primeiroDiaMes && dataCompra <= hoje) {
+        totalInvestidoNoMes += Number(fi.investedAmount);
+      }
+    });
+
+    return totalInvestidoNoMes;
   }
 
   /**
