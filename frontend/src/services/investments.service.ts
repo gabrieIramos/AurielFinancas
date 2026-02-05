@@ -19,6 +19,7 @@ export interface Investment {
   quantity: number;
   purchasePrice: number;
   purchaseDate: string;
+  broker?: string;
   createdAt?: string;
   updatedAt?: string;
   ativo: Ativo;
@@ -58,6 +59,7 @@ export interface CreateInvestmentData {
   quantity: number;
   purchasePrice: number;
   purchaseDate: string;
+  broker?: string;
 }
 
 export interface UpdateInvestmentData {
@@ -65,6 +67,7 @@ export interface UpdateInvestmentData {
   quantity?: number;
   purchasePrice?: number;
   purchaseDate?: string;
+  broker?: string;
 }
 
 // ========== RENDA FIXA ==========

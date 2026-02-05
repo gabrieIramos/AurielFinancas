@@ -72,6 +72,7 @@ export class InvestmentsService {
       quantity: number;
       purchasePrice: number;
       purchaseDate: string;
+      broker?: string;
     },
   ): Promise<Investment> {
     // Validações
@@ -100,6 +101,7 @@ export class InvestmentsService {
       quantity: data.quantity,
       purchasePrice: data.purchasePrice,
       purchaseDate: purchaseDate,
+      broker: data.broker || null,
     });
     
     const saved = await this.investmentRepository.save(investment);
@@ -114,6 +116,7 @@ export class InvestmentsService {
       quantity: number;
       purchasePrice: number;
       purchaseDate: string;
+      broker: string;
     }>,
   ): Promise<Investment> {
     const investment = await this.findOne(id, userId);
@@ -144,6 +147,7 @@ export class InvestmentsService {
     }
     if (data.quantity !== undefined) investment.quantity = data.quantity;
     if (data.purchasePrice !== undefined) investment.purchasePrice = data.purchasePrice;
+    if (data.broker !== undefined) investment.broker = data.broker;
 
     await this.investmentRepository.save(investment);
     return this.findOne(id, userId);

@@ -39,6 +39,9 @@ export class Investment {
   })
   purchaseDate: Date;
 
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  broker: string;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamp with time zone' })
   createdAt: Date;
 

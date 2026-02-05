@@ -59,6 +59,7 @@ export default function CarteiraScreen() {
   const [editQuantity, setEditQuantity] = useState("");
   const [editPrice, setEditPrice] = useState("");
   const [editDate, setEditDate] = useState("");
+  const [editBroker, setEditBroker] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [deleteTransactionId, setDeleteTransactionId] = useState<string | null>(null);
@@ -72,6 +73,7 @@ export default function CarteiraScreen() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [novaQuantidade, setNovaQuantidade] = useState("");
   const [novoPreco, setNovoPreco] = useState("");
+  const [novaCorretora, setNovaCorretora] = useState("");
   const [dataTransacao, setDataTransacao] = useState(() => {
     return new Date().toISOString().split('T')[0];
   });
@@ -306,6 +308,7 @@ export default function CarteiraScreen() {
         quantity: tipoTransacao === "venda" ? -parseFloat(novaQuantidade) : parseFloat(novaQuantidade),
         purchasePrice: parseFloat(novoPreco),
         purchaseDate: dataTransacao,
+        broker: novaCorretora || undefined,
       });
 
       if (response.error) {
@@ -334,6 +337,7 @@ export default function CarteiraScreen() {
     setSearchTicker("");
     setNovaQuantidade("");
     setNovoPreco("");
+    setNovaCorretora("");
     setDataTransacao(new Date().toISOString().split('T')[0]);
     setErrorMessage(null);
   };
@@ -392,6 +396,7 @@ export default function CarteiraScreen() {
     setEditQuantity(Math.abs(transaction.quantity).toString());
     setEditPrice(transaction.purchasePrice.toString());
     setEditDate(new Date(transaction.purchaseDate).toISOString().split('T')[0]);
+    setEditBroker(transaction.broker || "");
     setEditError(null);
   };
 
@@ -400,6 +405,7 @@ export default function CarteiraScreen() {
     setEditQuantity("");
     setEditPrice("");
     setEditDate("");
+    setEditBroker("");
     setEditError(null);
   };
 
@@ -427,6 +433,7 @@ export default function CarteiraScreen() {
         quantity: newQuantity,
         purchasePrice: parseFloat(editPrice),
         purchaseDate: editDate,
+        broker: editBroker || undefined,
       });
 
       if (response.error) {
@@ -437,7 +444,7 @@ export default function CarteiraScreen() {
       // Atualizar lista de transações
       setTransactions(prev => prev.map(t => 
         t.id === transactionId 
-          ? { ...t, quantity: newQuantity, purchasePrice: parseFloat(editPrice), purchaseDate: editDate }
+          ? { ...t, quantity: newQuantity, purchasePrice: parseFloat(editPrice), purchaseDate: editDate, broker: editBroker }
           : t
       ));
 
@@ -862,6 +869,22 @@ export default function CarteiraScreen() {
                       className={`mt-1 ${precoError ? 'border-red-500' : ''} ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
                     />
                     {precoError && <p className="text-xs text-red-500 mt-1">{precoError}</p>}
+                  </div>
+                </div>
+
+                {/* Corretora */}
+                <div>
+                  <Label htmlFor="corretora" className="text-xs">Corretora (opcional)</Label>
+                  <div className="relative mt-1">
+                    <Landmark className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />
+                    <Input
+                      id="corretora"
+                      type="text"
+                      placeholder="Ex: XP, Clear, Nubank..."
+                      value={novaCorretora}
+                      onChange={(e) => setNovaCorretora(e.target.value)}
+                      className={`pl-10 ${theme === "dark" ? "bg-zinc-800 border-zinc-700 text-white" : "bg-zinc-50 border-zinc-200 text-black"}`}
+                    />
                   </div>
                 </div>
 
@@ -1647,6 +1670,21 @@ export default function CarteiraScreen() {
                             </div>
                           </div>
 
+                          {/* Corretora */}
+                          <div className="mt-3">
+                            <Label className="text-xs">Corretora</Label>
+                            <div className="relative mt-1">
+                              <Landmark className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />
+                              <Input
+                                type="text"
+                                placeholder="Ex: XP, Clear, Nubank..."
+                                value={editBroker}
+                                onChange={(e) => setEditBroker(e.target.value)}
+                                className={`pl-10 h-9 text-sm ${theme === "dark" ? "bg-zinc-700 border-zinc-600" : "bg-white border-zinc-300"}`}
+                              />
+                            </div>
+                          </div>
+
                           {editError && (
                             <p className="text-xs text-red-500 mt-2">{editError}</p>
                           )}
@@ -1701,6 +1739,16 @@ export default function CarteiraScreen() {
                               </p>
                             </div>
                           </div>
+                          
+                          {/* Corretora - modo visualização */}
+                          {transaction.broker && (
+                            <div className="mt-2 flex items-center gap-1">
+                              <Landmark className={`w-3 h-3 ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />
+                              <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-500"}`}>
+                                {transaction.broker}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>

@@ -796,7 +796,13 @@ Regras:
     const ativosEmBaixa = kpis.assets?.filter(a => a.lucroPerdaPercentual < -5) || [];
     const ativosMaiorPosicao = [...(kpis.assets || [])].sort((a, b) => b.valorTotal - a.valorTotal).slice(0, 3);
 
-    const prompt = `Você é um consultor financeiro pessoal. Analise a carteira e finanças do usuário e gere insights ESPECÍFICOS e PERSONALIZADOS.
+    const prompt = `
+Você é um consultor financeiro pessoal SÊNIOR, focado em gerar insights acionáveis, específicos e personalizados.
+Respostas genéricas INVALIDAM a análise.
+
+PERFIL DO USUÁRIO:
+- Objetivo: crescimento patrimonial no médio/longo prazo
+- Perfil de risco: moderado
 
 DADOS FINANCEIROS (últimos 30 dias):
 - Receitas: R$ ${kpis.totalIncome.toFixed(2)}
@@ -809,7 +815,7 @@ CARTEIRA DE INVESTIMENTOS:
 - Valor total investido: R$ ${kpis.portfolioValue.toFixed(2)}
 - Resultado total: ${kpis.portfolioProfitLoss >= 0 ? '+' : ''}R$ ${kpis.portfolioProfitLoss.toFixed(2)} (${kpis.portfolioProfitLossPercentage.toFixed(1)}%)
 - Quantidade de ativos: ${kpis.totalAssets}
-- Distribuição: ${kpis.portfolioDistribution.map(d => `${d.tipo}: ${d.percentage.toFixed(0)}%`).join(', ') || 'N/A'}
+- Distribuição por tipo: ${kpis.portfolioDistribution.map(d => `${d.tipo}: ${d.percentage.toFixed(0)}%`).join(', ') || 'N/A'}
 
 DETALHAMENTO DOS ATIVOS:
 ${assetsDetailed}
@@ -818,29 +824,63 @@ ${ativosEmAlta.length > 0 ? `ATIVOS EM ALTA (>5%): ${ativosEmAlta.map(a => `${a.
 ${ativosEmBaixa.length > 0 ? `ATIVOS EM BAIXA (<-5%): ${ativosEmBaixa.map(a => `${a.ticker} (${a.lucroPerdaPercentual.toFixed(1)}%)`).join(', ')}` : ''}
 ${ativosMaiorPosicao.length > 0 ? `MAIORES POSIÇÕES: ${ativosMaiorPosicao.map(a => `${a.ticker} (R$${a.valorTotal.toFixed(2)})`).join(', ')}` : ''}
 
-Retorne APENAS um JSON válido com esta estrutura:
+CRITÉRIOS OBRIGATÓRIOS:
+- Ativo >30% da carteira → ALERTA de concentração
+- Queda >10% + grande posição → ANÁLISE DE RISCO
+- Alta >15% + grande posição → SUGESTÃO de rebalanceamento
+- Classe de ativos >50% → risco de diversificação
+
+REGRAS:
+- Máx: 3 alertas, 2 análises de risco, 3 sugestões
+- Cite sempre tickers reais
+- Toda descrição deve conter pelo menos 1 dado numérico
+- Frases genéricas são PROIBIDAS
+
+ANÁLISE DE EVENTOS EXTREMOS (OBRIGATÓRIA):
+- Qualquer ativo com queda acumulada superior a 40% deve ser tratado como EVENTO EXTREMO.
+- Para eventos extremos, a análise NÃO pode se limitar a preço ou volatilidade.
+- Gere um ALERTA destacando a POSSÍVEL existência de fatos relevantes como:
+  - recuperação judicial
+  - risco de insolvência
+  - diluição acionária
+  - suspensão de negociação
+  - reestruturação societária
+- Mesmo sem confirmação externa, deixe claro que a magnitude da queda indica risco estrutural.
+
+FORMATO DE RESPOSTA OBRIGATÓRIO:
+Retorne APENAS um JSON válido seguindo EXATAMENTE esta estrutura:
 {
   "alertas": [
-    {"id": "1", "tipo": "alerta|oportunidade", "titulo": "título", "descricao": "descrição", "valor": "R$ X ou null"}
+    {
+      "id": "1",
+      "tipo": "alerta" ou "oportunidade",
+      "titulo": "Título curto do alerta",
+      "descricao": "Descrição detalhada com dados numéricos",
+      "valor": "R$ X.XXX,XX" (opcional, quando aplicável)
+    }
   ],
   "analiseRisco": [
-    {"id": "1", "nivel": "baixo|medio|alto", "titulo": "título", "descricao": "descrição"}
+    {
+      "id": "1",
+      "nivel": "baixo", "medio" ou "alto",
+      "titulo": "Título da análise de risco",
+      "descricao": "Descrição detalhada com dados numéricos"
+    }
   ],
   "sugestoes": [
-    {"id": "1", "tipo": "info|oportunidade", "titulo": "título", "descricao": "descrição", "valor": "R$ X ou null"}
+    {
+      "id": "1",
+      "tipo": "info" ou "oportunidade",
+      "titulo": "Título da sugestão",
+      "descricao": "Descrição detalhada da sugestão",
+      "valor": "R$ X.XXX,XX" (opcional)
+    }
   ]
 }
 
-REGRAS IMPORTANTES:
-1. Máximo: 3 alertas, 2 análises de risco, 3 sugestões
-2. SUGESTÕES DEVEM SER ESPECÍFICAS para os ativos do usuário:
-   - Mencione os tickers específicos (ex: "PETR4", "HGLG11")
-   - Sugira ações concretas baseadas no desempenho de cada ativo
-   - Se um ativo está em alta, sugira realizar lucros parciais ou manter
-   - Se um ativo está em baixa, sugira avaliar fundamentos ou fazer preço médio
-   - Analise a concentração da carteira e sugira diversificação se necessário
-3. NÃO seja genérico. Use os dados reais fornecidos.
-4. Responda em português brasileiro`;
+IMPORTANTE: Cada item DEVE ter id, tipo/nivel, titulo e descricao. IDs devem ser strings únicas ("1", "2", "3"...).
+Responda em português brasileiro.
+`;
 
     try {
       const completion = await this.groq.chat.completions.create({
@@ -871,10 +911,32 @@ REGRAS IMPORTANTES:
 
       const parsed = JSON.parse(jsonStr);
       
+      // Normalizar e validar a estrutura dos objetos retornados pela IA
+      const normalizeInsight = (item: any, index: number, defaultTipo: string = 'info'): AIInsight => ({
+        id: String(item.id || index + 1),
+        tipo: ['alerta', 'oportunidade', 'info'].includes(item.tipo) ? item.tipo : defaultTipo,
+        titulo: item.titulo || item.title || 'Insight',
+        descricao: item.descricao || item.description || '',
+        valor: item.valor || item.value || undefined,
+      });
+
+      const normalizeRisk = (item: any, index: number): AIRiskAnalysis => ({
+        id: String(item.id || index + 1),
+        nivel: ['baixo', 'medio', 'alto'].includes(item.nivel) ? item.nivel : 'medio',
+        titulo: item.titulo || item.title || 'Análise de Risco',
+        descricao: item.descricao || item.description || '',
+      });
+
       return {
-        alertas: parsed.alertas || [],
-        analiseRisco: parsed.analiseRisco || [],
-        sugestoes: parsed.sugestoes || [],
+        alertas: Array.isArray(parsed.alertas) 
+          ? parsed.alertas.map((a: any, i: number) => normalizeInsight(a, i, 'alerta'))
+          : [],
+        analiseRisco: Array.isArray(parsed.analiseRisco) 
+          ? parsed.analiseRisco.map((r: any, i: number) => normalizeRisk(r, i))
+          : [],
+        sugestoes: Array.isArray(parsed.sugestoes) 
+          ? parsed.sugestoes.map((s: any, i: number) => normalizeInsight(s, i, 'info'))
+          : [],
       };
     } catch (error) {
       this.logger.error(`Insights Error: ${error.message}`);
