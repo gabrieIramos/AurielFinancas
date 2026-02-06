@@ -51,33 +51,3 @@ JWT_EXPIRES_IN=7d
 GROQ_API_KEY=your-groq-api-key
 ```
 
-## 🏗️ Estrutura
-
-```
-src/
-├── modules/
-│   ├── auth/          # Autenticação JWT
-│   ├── users/         # Usuários
-│   ├── accounts/      # Contas bancárias
-│   ├── transactions/  # Transações com deduplicação
-│   ├── categories/    # Categorias
-│   ├── investments/   # Investimentos
-	│   ├── ai/           # IA (Groq)
-│   └── net-worth/    # Patrimônio líquido
-├── app.module.ts
-└── main.ts
-```
-
-## 🤖 Funcionalidades de IA
-
-- **Categorização Automática**: Groq categoriza transações
-- **Cache Inteligente**: Reutiliza categorizações anteriores
-- **Limpeza de Descrições**: Remove ruído de extratos bancários
-- **Relatórios Mensais**: Análises geradas por IA
-
-## 🔒 Segurança
-
-- JWT com expiração configurável
-- Bcrypt para hash de senhas
-- Validação de entrada com class-validator
-- Guards do Passport para rotas protegidas

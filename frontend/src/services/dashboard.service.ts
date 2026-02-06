@@ -26,6 +26,13 @@ export interface DashboardPatrimonioHistorico {
   value: number;
 }
 
+export interface DashboardCategoriaRendimento {
+  name: string;
+  value: number;
+  percentage: number;
+  color: string;
+}
+
 export interface DashboardData {
   userName: string;
   patrimonioTotal: number;
@@ -34,7 +41,9 @@ export interface DashboardData {
   despesasPorCategoria: DashboardDespesaCategoria[];
   alocacaoAtivos: DashboardAlocacaoAtivo[];
   historicoPatrimonio: DashboardPatrimonioHistorico[];
-  hasPatrimonioHistory: boolean; // true se tem histórico real, false se é usuário novo
+  hasPatrimonioHistory: boolean;
+  fiisRendimentoPorCategoria: DashboardCategoriaRendimento[];
+  acoesRendimentoPorCategoria: DashboardCategoriaRendimento[];
 }
 
 // Cores para categorias de despesas - 16 categorias com cores distintas
@@ -166,6 +175,10 @@ class DashboardService {
     // Gerar histórico de patrimônio (real ou apenas mês atual)
     const historicoPatrimonio = this.processarHistoricoPatrimonio(netWorthData, patrimonioTotal);
 
+    // Calcular rendimento por categoria de FIIs e Ações (apenas positivos)
+    const fiisRendimentoPorCategoria = this.calcularRendimentoPorCategoria(portfolio?.items || [], 'FII');
+    const acoesRendimentoPorCategoria = this.calcularRendimentoPorCategoria(portfolio?.items || [], 'Ação');
+
     return {
       userName: displayName,
       patrimonioTotal,
@@ -178,6 +191,8 @@ class DashboardService {
       alocacaoAtivos,
       historicoPatrimonio,
       hasPatrimonioHistory: netWorthData?.hasHistory || false,
+      fiisRendimentoPorCategoria,
+      acoesRendimentoPorCategoria,
     };
   }
 
@@ -458,6 +473,90 @@ class DashboardService {
       'POUPANCA': 'Poupança',
     };
     return mapeamento[tipo] || tipo;
+  }
+
+  /**
+   * Calcula rendimento por categoria de ativos (FIIs ou Ações)
+   * Apenas categorias com rendimento positivo são incluídas
+   */
+  private calcularRendimentoPorCategoria(
+    portfolioItems: PortfolioItem[],
+    tipoAtivo: 'FII' | 'Ação'
+  ): DashboardCategoriaRendimento[] {
+    // Cores para categorias de FIIs
+    const FII_CATEGORY_COLORS: Record<string, string> = {
+      'Lajes Corporativas': '#3b82f6',
+      'Shoppings': '#8b5cf6',
+      'Logística': '#10b981',
+      'Residencial': '#f59e0b',
+      'Híbrido': '#ec4899',
+      'Fundos de Fundos': '#06b6d4',
+      'Recebíveis': '#6366f1',
+      'Agro': '#84cc16',
+      'Educacional': '#a855f7',
+      'Hotéis': '#f97316',
+      'Hospital': '#14b8a6',
+      'Varejo': '#eab308',
+      'Outros': '#71717a',
+    };
+
+    // Cores para setores de Ações
+    const ACAO_SECTOR_COLORS: Record<string, string> = {
+      'Financeiro': '#3b82f6',
+      'Energia': '#f59e0b',
+      'Varejo': '#ec4899',
+      'Tecnologia': '#8b5cf6',
+      'Saúde': '#10b981',
+      'Consumo': '#f97316',
+      'Indústria': '#6366f1',
+      'Telecomunicações': '#06b6d4',
+      'Materiais Básicos': '#84cc16',
+      'Petróleo e Gás': '#0ea5e9',
+      'Saneamento': '#14b8a6',
+      'Imobiliário': '#a855f7',
+      'Transporte': '#eab308',
+      'Utilidades': '#22c55e',
+      'Outros': '#71717a',
+    };
+
+    const colors = tipoAtivo === 'FII' ? FII_CATEGORY_COLORS : ACAO_SECTOR_COLORS;
+
+    // Filtrar ativos do tipo especificado
+    const ativosFiltrados = portfolioItems.filter(item => item.ativo.tipo === tipoAtivo);
+
+    // Agrupar por categoria e somar rendimento (apenas positivos)
+    const rendimentoPorCategoria: Record<string, number> = {};
+
+    ativosFiltrados.forEach(item => {
+      // Apenas ativos com rendimento positivo
+      if (item.profitLoss > 0) {
+        const categoria = item.ativo.categoria || 'Outros';
+        if (!rendimentoPorCategoria[categoria]) {
+          rendimentoPorCategoria[categoria] = 0;
+        }
+        rendimentoPorCategoria[categoria] += item.profitLoss;
+      }
+    });
+
+    // Calcular total para percentuais
+    const totalRendimento = Object.values(rendimentoPorCategoria).reduce((acc, val) => acc + val, 0);
+
+    // Se não há rendimento positivo, retornar array vazio
+    if (totalRendimento === 0) {
+      return [];
+    }
+
+    // Converter para array e ordenar por valor
+    const resultado: DashboardCategoriaRendimento[] = Object.entries(rendimentoPorCategoria)
+      .map(([categoria, valor]) => ({
+        name: categoria,
+        value: valor,
+        percentage: (valor / totalRendimento) * 100,
+        color: colors[categoria] || '#71717a',
+      }))
+      .sort((a, b) => b.value - a.value);
+
+    return resultado;
   }
 }
 

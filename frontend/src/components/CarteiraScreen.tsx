@@ -139,9 +139,11 @@ export default function CarteiraScreen() {
     }).format(value);
   };
 
-  const formatPercentage = (value: number) => {
-    const sign = value >= 0 ? '+' : '';
-    return `${sign}${value.toFixed(2)}%`;
+  const formatPercentage = (value: number | string) => {
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    const safeValue = isNaN(numValue) ? 0 : numValue;
+    const sign = safeValue >= 0 ? '+' : '';
+    return `${sign}${safeValue.toFixed(2)}%`;
   };
 
   // Carregar dados
@@ -901,23 +903,66 @@ export default function CarteiraScreen() {
           {items.map((item) => (
             <div key={item.ativo.id} onClick={() => handleOpenEditDialog(item)}
               className={`p-4 rounded-xl cursor-pointer ${theme === "dark" ? "bg-zinc-900 hover:bg-zinc-800" : "bg-zinc-100 hover:bg-zinc-200"} transition-colors`}>
-              <div className="flex items-center justify-between">
+              
+              {/* Header: Ticker + Variação do Dia */}
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-lg">{item.ativo.ticker}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded font-medium`} style={{ backgroundColor: (item.ativo.variacaoDia || 0) >= 0 ? '#22c55e20' : '#ef444420', color: (item.ativo.variacaoDia || 0) >= 0 ? '#22c55e' : '#ef4444' }}>                      
+                    {(item.ativo.variacaoDia || 0) >= 0 ? "↑" : "↓"} {formatPercentage(item.ativo.variacaoDia || 0)} hoje
+                  </span>
+                </div>
+                <ChevronRight className={`w-5 h-5 ${theme === "dark" ? "text-zinc-600" : "text-zinc-400"}`} />
+              </div>
+
+              {/* Grid de informações */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                {/* Quantidade */}
                 <div>
-                  <div className="flex items-center gap-2">
-                    <p className="font-semibold">{item.ativo.ticker}</p>
-                    <span className={`text-xs px-2 py-0.5 rounded ${item.profitLoss >= 0 ? "bg-emerald-500/20 text-emerald-500" : "bg-red-500/20 text-red-500"}`}>
-                      {formatPercentage(item.profitLossPercentage)}
-                    </span>
-                  </div>
-                  <p className={`text-sm ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                    {item.totalQuantity} cotas • PM {formatCurrency(item.averagePrice)}
+                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>Quantidade</p>
+                  <p className={`text-sm font-medium ${theme === "dark" ? "text-zinc-200" : "text-zinc-800"}`}>
+                    {item.totalQuantity} cotas
                   </p>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold">{formatCurrency(item.currentValue)}</p>
-                  <p className={`text-sm ${item.profitLoss >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-                    {item.profitLoss >= 0 ? "+" : ""}{formatCurrency(item.profitLoss)}
+
+                {/* Preço Atual (cotação) */}
+                <div>
+                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>Cotação Atual</p>
+                  <p className={`text-sm font-medium ${theme === "dark" ? "text-zinc-200" : "text-zinc-800"}`}>
+                    {formatCurrency(item.currentPrice)}
                   </p>
+                </div>
+
+                {/* Preço Médio */}
+                <div>
+                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>Preço Médio</p>
+                  <p className={`text-sm font-medium ${theme === "dark" ? "text-zinc-200" : "text-zinc-800"}`}>
+                    {formatCurrency(item.averagePrice)}
+                  </p>
+                </div>
+
+                {/* Total Investido */}
+                <div>
+                  <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>Total Investido</p>
+                  <p className={`text-sm font-medium ${theme === "dark" ? "text-zinc-200" : "text-zinc-800"}`}>
+                    {formatCurrency(item.totalCost)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Footer: Valor Atual + Lucro/Prejuízo */}
+              <div className={`mt-3 pt-3 border-t ${theme === "dark" ? "border-zinc-800" : "border-zinc-200"}`}>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>Valor Total</p>
+                    <p className="font-semibold">{formatCurrency(item.currentValue)}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-xs ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>Lucro/Prejuízo</p>
+                    <p className="font-semibold" style={{ color: item.profitLoss >= 0 ? "#22c55e" : "#ef4444" }}>
+                      {item.profitLoss >= 0 ? "+" : ""}{formatCurrency(item.profitLoss)}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

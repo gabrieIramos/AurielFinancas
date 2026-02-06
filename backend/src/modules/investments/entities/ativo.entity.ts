@@ -32,6 +32,15 @@ export class Ativo {
   })
   precoAtual: number;
 
+  @Column({
+    name: 'variacao_dia',
+    type: 'numeric',
+    precision: 10,
+    scale: 2,
+    default: 0,
+  })
+  variacaoDia: number;
+
   @CreateDateColumn({ name: 'data_criacao', type: 'timestamp', default: () => 'LOCALTIMESTAMP' })
   dataCriacao: Date;
 

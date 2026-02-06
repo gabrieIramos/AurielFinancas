@@ -79,7 +79,7 @@ export class BrapiService {
    * Busca cotação de um único ativo na BRAPI (plano free)
    * Retorna { price, errorCode } para tracking de erros
    */
-  async getQuote(ticker: string): Promise<{ price: number | null; errorCode?: number; errorMessage?: string }> {
+  async getQuote(ticker: string): Promise<{ price: number | null; changePercent?: number; errorCode?: number; errorMessage?: string }> {
     if (!this.apiKey) {
       return { price: null, errorMessage: 'API Key não configurada' };
     }
@@ -98,7 +98,10 @@ export class BrapiService {
       const data: BrapiQuoteResponse = await response.json();
       
       if (data.results && data.results.length > 0 && data.results[0].regularMarketPrice) {
-        return { price: data.results[0].regularMarketPrice };
+        return { 
+          price: data.results[0].regularMarketPrice,
+          changePercent: data.results[0].regularMarketChangePercent || 0
+        };
       }
       
       return { price: null, errorMessage: 'Preço não encontrado na resposta' };
@@ -133,8 +136,10 @@ export class BrapiService {
       if (result.price !== null) {
         await this.ativoRepository.update(ativo.id, {
           precoAtual: result.price,
+          variacaoDia: result.changePercent || 0,
         });
-        this.logger.log(`✅ ${prefix}[${index + 1}/${total}] ${ativo.ticker}: R$ ${result.price.toFixed(2)}`);
+        const changeStr = result.changePercent !== undefined ? ` (${result.changePercent >= 0 ? '+' : ''}${result.changePercent.toFixed(2)}%)` : '';
+        this.logger.log(`✅ ${prefix}[${index + 1}/${total}] ${ativo.ticker}: R$ ${result.price.toFixed(2)}${changeStr}`);
         return { success: true };
       } else {
         this.logger.warn(`❌ ${prefix}[${index + 1}/${total}] ${ativo.ticker}: ${result.errorMessage || 'Falha ao obter preço'}`);

@@ -37,6 +37,8 @@ export default function HomeScreen() {
   const alocacaoData = dashboardData?.alocacaoAtivos || [];
   const patrimonioData = dashboardData?.historicoPatrimonio || [];
   const hasPatrimonioHistory = dashboardData?.hasPatrimonioHistory || false;
+  const fiisRendimentoPorCategoria = dashboardData?.fiisRendimentoPorCategoria || [];
+  const acoesRendimentoPorCategoria = dashboardData?.acoesRendimentoPorCategoria || [];
   
   const totalGastos = resumoMensal.gastos;
   const saldoLiquido = resumoMensal.receitas - resumoMensal.gastos;
@@ -342,6 +344,138 @@ export default function HomeScreen() {
           )}
         </div>
       </div>
+
+      {/* Rendimento por Categoria - FIIs */}
+      {fiisRendimentoPorCategoria.length > 0 && (
+        <div className="px-4 mt-6">
+          <h3 className="mb-4">FIIs - Rendimento por Categoria</h3>
+          <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
+            {showValues ? (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={fiisRendimentoPorCategoria}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {fiisRendimentoPorCategoria.map((entry, index) => (
+                        <Cell key={`fii-cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: theme === "dark" ? "#18181b" : "#ffffff",
+                        border: `1px solid ${theme === "dark" ? "#3f3f46" : "#e4e4e7"}`,
+                        borderRadius: "8px",
+                        color: theme === "dark" ? "#ffffff" : "#000000",
+                      }}
+                      formatter={(value: number) => formatCurrency(value)}
+                      itemStyle={{
+                        color: theme === "dark" ? "#e5e7eb" : "#111827",
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="mt-4 space-y-2">
+                  {fiisRendimentoPorCategoria.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className={`text-sm ${theme === "dark" ? "text-zinc-300" : "text-zinc-700"}`}>{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-sm ${theme === "dark" ? "text-zinc-400" : "text-zinc-500"}`}>{item.percentage.toFixed(1)}%</span>
+                        <span className="text-sm" style={{ color: '#10b981' }}>+{formatCurrency(item.value)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className={`h-[200px] flex items-center justify-center ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>
+                <div className="text-center">
+                  <EyeOff className="w-8 h-8 mx-auto mb-2" />
+                  <p className="text-sm">Valores ocultos</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Rendimento por Setor - Ações */}
+      {acoesRendimentoPorCategoria.length > 0 && (
+        <div className="px-4 mt-6">
+          <h3 className="mb-4">Ações - Rendimento por Setor</h3>
+          <div className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}>
+            {showValues ? (
+              <>
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie
+                      data={acoesRendimentoPorCategoria}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={50}
+                      outerRadius={80}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {acoesRendimentoPorCategoria.map((entry, index) => (
+                        <Cell key={`acao-cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: theme === "dark" ? "#18181b" : "#ffffff",
+                        border: `1px solid ${theme === "dark" ? "#3f3f46" : "#e4e4e7"}`,
+                        borderRadius: "8px",
+                        color: theme === "dark" ? "#ffffff" : "#000000",
+                      }}
+                      formatter={(value: number) => formatCurrency(value)}
+                      itemStyle={{
+                        color: theme === "dark" ? "#e5e7eb" : "#111827",
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="mt-4 space-y-2">
+                  {acoesRendimentoPorCategoria.map((item, index) => (
+                    <div key={index} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-3 h-3 rounded-full"
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className={`text-sm ${theme === "dark" ? "text-zinc-300" : "text-zinc-700"}`}>{item.name}</span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className={`text-sm ${theme === "dark" ? "text-zinc-400" : "text-zinc-500"}`}>{item.percentage.toFixed(1)}%</span>
+                        <span className="text-sm" style={{ color: '#10b981' }}>+{formatCurrency(item.value)}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className={`h-[200px] flex items-center justify-center ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`}>
+                <div className="text-center">
+                  <EyeOff className="w-8 h-8 mx-auto mb-2" />
+                  <p className="text-sm">Valores ocultos</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ export interface Ativo {
   tipo: string;
   categoria: string;
   precoAtual: number;
+  variacaoDia: number; // Variação percentual do dia (da BRAPI)
   dataCriacao?: string;
 }
 
