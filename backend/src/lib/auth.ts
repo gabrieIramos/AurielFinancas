@@ -37,11 +37,11 @@ export const auth = betterAuth({
   },
   advanced: {
     crossSubDomainCookies: {
-      enabled: false, // Não necessário para localhost
+      enabled: false,
     },
     defaultCookieAttributes: {
-      sameSite: 'lax', // Permite cookies em requisições cross-origin
-      secure: process.env.NODE_ENV === 'production', // HTTPS apenas em produção
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' para cross-domain em produção
+      secure: process.env.NODE_ENV === 'production', // HTTPS obrigatório com sameSite='none'
       httpOnly: true,
       path: '/',
     },
@@ -58,6 +58,7 @@ export const auth = betterAuth({
     'http://localhost:5172',
     'http://localhost:5173',
     'http://localhost:3000',
+    'https://auriel-financas.vercel.app',
     process.env.FRONTEND_URL || 'http://localhost:5172',
   ],
 });
