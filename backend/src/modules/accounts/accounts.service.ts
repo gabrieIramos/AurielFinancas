@@ -101,20 +101,7 @@ export class AccountsService {
     // Buscar todas as transações desta conta
     const transactions = await this.transactionRepository.find({
       where: { accountId, userId },
-    });
-
-    // DEBUG: Log para entender os valores
-    console.log(`\n=== DEBUG CALCULATE BALANCE ===`);
-    console.log(`Conta: ${account.name} (${accountId})`);
-    console.log(`Initial Balance: ${account.initialBalance}`);
-    console.log(`Total de transações: ${transactions.length}`);
-    
-    if (transactions.length > 0) {
-      console.log('Primeiras 5 transações:');
-      transactions.slice(0, 5).forEach((t, i) => {
-        console.log(`  ${i}: amount=${t.amount}, desc="${t.descriptionRaw?.substring(0, 30)}"`);
-      });
-    }
+    });   
 
     // Somar transações considerando o sinal do amount
     // amount positivo = entrada (receita)

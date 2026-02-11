@@ -11,6 +11,7 @@ import OnboardingScreen from "./components/OnboardingScreen";
 import LoginScreen from "./components/LoginScreen";
 import SignupScreen from "./components/SignupScreen";
 import FinancialProfileForm from "./components/FinancialProfileForm";
+import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { Toaster } from "./components/ui/sonner";
 
 type Tab = "home" | "extrato" | "carteira" | "ia" | "perfil";
@@ -147,6 +148,7 @@ export default function App() {
       <AuthProvider>
         <AppContent />
         <Toaster richColors position="top-center" />
+        <PWAUpdatePrompt />
       </AuthProvider>
     </ThemeProvider>
   );

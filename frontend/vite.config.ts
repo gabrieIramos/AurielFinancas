@@ -1,10 +1,68 @@
 
   import { defineConfig } from 'vite';
   import react from '@vitejs/plugin-react-swc';
+  import { VitePWA } from 'vite-plugin-pwa';
   import path from 'path';
 
   export default defineConfig({
-    plugins: [react()],
+    plugins: [
+      react(),
+      VitePWA({
+        registerType: 'autoUpdate',
+        includeAssets: [
+          'android/*.png',
+          'ios/*.png',
+          'windows11/*.png'
+        ],
+        manifest: false, // Usar manifest.json do public/
+        workbox: {
+          maximumFileSizeToCacheInBytes: 10 * 1024 * 1024, // 10 MB (aumentado para suportar logo grande)
+          globPatterns: ['**/*.{js,css,html,ico,svg,woff,woff2}'],
+          globIgnores: ['**/android/**', '**/ios/**', '**/windows11/**'], // Ignora pastas de ícones (muito grande)
+          runtimeCaching: [
+            {
+              urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'images-cache',
+                expiration: {
+                  maxEntries: 50,
+                  maxAgeSeconds: 60 * 60 * 24 * 30 // 30 dias
+                }
+              }
+            },
+            {
+              urlPattern: /^https:\/\/aurielfinancas-production\.up\.railway\.app\/api\/.*/i,
+              handler: 'NetworkFirst',
+              options: {
+                cacheName: 'api-cache',
+                expiration: {
+                  maxEntries: 100,
+                  maxAgeSeconds: 60 * 60 * 24 // 24 horas
+                },
+                cacheableResponse: {
+                  statuses: [0, 200]
+                }
+              }
+            },
+            {
+              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-cache',
+                expiration: {
+                  maxEntries: 10,
+                  maxAgeSeconds: 60 * 60 * 24 * 365 // 1 ano
+                }
+              }
+            }
+          ]
+        },
+        devOptions: {
+          enabled: false // Desabilita PWA em desenvolvimento
+        }
+      })
+    ],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -51,6 +109,37 @@
     build: {
       target: 'esnext',
       outDir: 'build',
+      minify: 'terser',
+      terserOptions: {
+        compress: {
+          drop_console: true, // Remove console.log em produção
+          drop_debugger: true,
+          pure_funcs: ['console.log', 'console.info']
+        }
+      },
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom'],
+            'ui-radix': [
+              '@radix-ui/react-dialog',
+              '@radix-ui/react-dropdown-menu',
+              '@radix-ui/react-select',
+              '@radix-ui/react-tabs',
+              '@radix-ui/react-popover'
+            ],
+            'charts': ['recharts']
+          }
+        }
+      },
+      chunkSizeWarningLimit: 1000,
+      cssCodeSplit: true,
+      sourcemap: false, // Desabilita sourcemap em produção para reduzir tamanho
+      reportCompressedSize: false // Acelera build
+    },
+    optimizeDeps: {
+      include: ['react', 'react-dom'],
+      exclude: ['@vite/client', '@vite/env']
     },
     server: {
       port: 5172,
