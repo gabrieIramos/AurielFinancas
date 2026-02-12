@@ -11,6 +11,33 @@ export default function AuthCallbackScreen() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        // Verifica se há erro na URL (vindo do backend)
+        const urlParams = new URLSearchParams(window.location.search);
+        const errorParam = urlParams.get('error');
+        
+        if (errorParam) {
+          console.error('OAuth error from URL:', errorParam);
+          
+          // Limpa OAuth markers
+          sessionStorage.removeItem('oauth_in_progress');
+          sessionStorage.removeItem('oauth_timestamp');
+          
+          // Define mensagem baseada no erro
+          let message = 'Erro na autenticação.';
+          if (errorParam === 'state_mismatch') {
+            message = 'Erro de segurança (state mismatch). Cookies podem estar bloqueados. Tente novamente.';
+          } else if (errorParam === 'access_denied') {
+            message = 'Acesso negado. Você cancelou a autenticação.';
+          }
+          
+          setErrorMessage(message);
+          setStatus("error");
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 4000);
+          return;
+        }
+        
         // Verifica se há OAuth em progresso
         const oauthInProgress = sessionStorage.getItem('oauth_in_progress');
         const oauthTimestamp = sessionStorage.getItem('oauth_timestamp');

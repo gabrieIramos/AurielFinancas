@@ -48,14 +48,17 @@ export const auth = betterAuth({
   },
   advanced: {
     crossSubDomainCookies: {
-      enabled: false,
+      enabled: true, // Compartilha cookies entre subdomínios .up.railway.app
     },
     useSecureCookies: process.env.NODE_ENV === 'production',
     defaultCookieAttributes: {
-      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax', // Mudado de 'none' para 'lax' - melhor compatibilidade iOS
+      // Railway: Ambos em .up.railway.app = same-site → sameSite='lax' funciona perfeitamente
+      // Localhost: same-origin → sameSite='lax'
+      sameSite: 'lax',
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       path: '/',
+      domain: process.env.NODE_ENV === 'production' ? '.up.railway.app' : undefined, // Compartilha cookie entre subdomínios Railway
     },
     // Configuração específica para cookies de OAuth state
     generateId: () => {

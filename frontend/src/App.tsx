@@ -26,9 +26,13 @@ function AppContent() {
 
   // Verifica se está na rota de callback do OAuth
   const isAuthCallback = window.location.pathname === "/auth-callback";
+  
+  // Verifica se há erro de OAuth na URL (qualquer rota)
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasOAuthError = urlParams.has('error');
 
-  // Se for callback, mostra tela de callback
-  if (isAuthCallback) {
+  // Se for callback OU tiver erro OAuth, mostra tela de callback
+  if (isAuthCallback || hasOAuthError) {
     return <AuthCallbackScreen />;
   }
 
