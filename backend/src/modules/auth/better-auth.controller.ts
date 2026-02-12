@@ -38,6 +38,15 @@ export class BetterAuthController {
       });
     }
     
+    // Intercepta resposta para logar Set-Cookie
+    const originalSetHeader = res.setHeader.bind(res);
+    res.setHeader = function(name: string, value: any) {
+      if (name.toLowerCase() === 'set-cookie' && req.path.includes('sign-in/social')) {
+        console.log('[Set-Cookie em /sign-in/social]:', value);
+      }
+      return originalSetHeader(name, value);
+    };
+    
     // Intercepta callback do Google para mobile (iOS/Android)
     if (req.path === '/callback/google' && req.query.state) {
       try {

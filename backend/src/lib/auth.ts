@@ -50,17 +50,16 @@ export const auth = betterAuth({
     crossSubDomainCookies: {
       enabled: true,
     },
-    useSecureCookies: process.env.NODE_ENV === 'production',
+    // IMPORTANTE: useSecureCookies=true adiciona prefixo __Secure- que causa problemas
+    // Mesmo com false, cookies ainda são secure=true via defaultCookieAttributes
+    useSecureCookies: false,
     defaultCookieAttributes: {
-      sameSite: 'lax', // Funciona tanto em same-domain quanto subdomínios compartilhados
-      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production', // Ainda secure, mas SEM prefixo __Secure-
       httpOnly: true,
       path: '/',
-      // Domain apenas para produção Railway (permite compartilhar entre subdomínios)
-      // Em localhost, não especificar domain
-      ...(process.env.NODE_ENV === 'production' && process.env.BACKEND_URL?.includes('.railway.app') 
-        ? { domain: '.up.railway.app' } 
-        : {}),
+      // NÃO especificar domain - deixa navegador gerenciar automaticamente
+      // Isso evita problemas com __Secure- cookies e cross-subdomain
     },
     // Configuração específica para cookies de OAuth state
     generateId: () => {
