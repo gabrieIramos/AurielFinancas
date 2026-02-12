@@ -6,30 +6,84 @@ export default function AuthCallbackScreen() {
   const { theme } = useTheme();
   const { isAuthenticated } = useAuth();
   const [status, setStatus] = useState<"loading" | "success" | "error">("loading");
+  const [errorMessage, setErrorMessage] = useState<string>("");
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Aguarda um pouco para garantir que o cookie foi setado
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // Verifica se há OAuth em progresso
+        const oauthInProgress = sessionStorage.getItem('oauth_in_progress');
+        const oauthTimestamp = sessionStorage.getItem('oauth_timestamp');
+        
+        // Verifica se o OAuth expirou (mais de 5 minutos)
+        if (oauthTimestamp) {
+          const elapsed = Date.now() - parseInt(oauthTimestamp);
+          if (elapsed > 5 * 60 * 1000) {
+            console.error('OAuth timeout');
+            sessionStorage.removeItem('oauth_in_progress');
+            sessionStorage.removeItem('oauth_timestamp');
+            setErrorMessage('Timeout na autenticação. Tente novamente.');
+            setStatus("error");
+            setTimeout(() => {
+              window.location.href = "/";
+            }, 2000);
+            return;
+          }
+        }
 
-        // Verifica se está autenticado
-        const checkAuth = async () => {
-          // Força reload para pegar a sessão
-          window.location.href = "/";
+        // Aguarda processamento do callback
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        // Tenta buscar a sessão diretamente
+        const checkSession = async (attempts = 0): Promise<boolean> => {
+          if (attempts > 5) return false;
+          
+          try {
+            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/session`, {
+              credentials: 'include',
+              headers: {
+                'Accept': 'application/json',
+              },
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              if (data?.user) {
+                return true;
+              }
+            }
+          } catch (err) {
+            console.error('Session check error:', err);
+          }
+          
+          // Retry após delay
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          return checkSession(attempts + 1);
         };
 
-        if (isAuthenticated) {
+        const sessionExists = await checkSession();
+        
+        if (sessionExists || isAuthenticated) {
+          // Limpa OAuth markers
+          sessionStorage.removeItem('oauth_in_progress');
+          sessionStorage.removeItem('oauth_timestamp');
+          
           setStatus("success");
           setTimeout(() => {
             window.location.href = "/";
-          }, 1000);
+          }, 800);
         } else {
-          // Tenta novamente após um delay
-          setTimeout(checkAuth, 1500);
+          setErrorMessage('Não foi possível confirmar a autenticação.');
+          setStatus("error");
+          setTimeout(() => {
+            window.location.href = "/";
+          }, 2000);
         }
       } catch (error) {
         console.error("Callback error:", error);
+        sessionStorage.removeItem('oauth_in_progress');
+        sessionStorage.removeItem('oauth_timestamp');
+        setErrorMessage('Erro no processo de autenticação.');
         setStatus("error");
         setTimeout(() => {
           window.location.href = "/";
@@ -127,8 +181,15 @@ export default function AuthCallbackScreen() {
                 Erro na autenticação
               </h2>
               <p
-                className={`text-sm ${
+                className={`text-sm mb-2 ${
                   theme === "dark" ? "text-zinc-400" : "text-zinc-600"
+                }`}
+              >
+                {errorMessage || "Erro desconhecido"}
+              </p>
+              <p
+                className={`text-xs ${
+                  theme === "dark" ? "text-zinc-500" : "text-zinc-500"
                 }`}
               >
                 Redirecionando para a tela de login...

@@ -34,6 +34,8 @@ export const auth = betterAuth({
       prompt: "select_account",
       accessType: "offline",
       callbackURL: `${process.env.FRONTEND_URL || 'http://localhost:5172'}/auth-callback`,
+      // Configuração adicional para iOS/Safari
+      enabled: true,
     },
   },
   session: {
@@ -48,11 +50,16 @@ export const auth = betterAuth({
     crossSubDomainCookies: {
       enabled: false,
     },
+    useSecureCookies: process.env.NODE_ENV === 'production',
     defaultCookieAttributes: {
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' para cross-domain em produção
-      secure: process.env.NODE_ENV === 'production', // HTTPS obrigatório com sameSite='none'
+      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax', // Mudado de 'none' para 'lax' - melhor compatibilidade iOS
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       path: '/',
+    },
+    // Configuração específica para cookies de OAuth state
+    generateId: () => {
+      return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     },
   },
   user: {

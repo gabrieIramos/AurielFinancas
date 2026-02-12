@@ -25,7 +25,16 @@ async function bootstrap() {
       : ['https://auriel-financas.vercel.app', process.env.FRONTEND_URL],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    allowedHeaders: [
+      'Content-Type', 
+      'Authorization', 
+      'Cookie',
+      'Set-Cookie',
+      'X-Requested-With',
+      'Accept',
+      'Origin',
+    ],
+    exposedHeaders: ['Set-Cookie'],
   });
 
   // Swagger Documentation

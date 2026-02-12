@@ -124,6 +124,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
       
+      // Marca que iniciou login com Google (para recuperar após redirect)
+      if (isMobile) {
+        sessionStorage.setItem('oauth_in_progress', 'google');
+        sessionStorage.setItem('oauth_timestamp', Date.now().toString());
+      }
+      
       // No iOS/Mobile, usa redirect ao invés de popup
       const result = await signIn.social({
         provider: "google",
@@ -132,6 +138,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       
       if (result.error) {
+        sessionStorage.removeItem('oauth_in_progress');
+        sessionStorage.removeItem('oauth_timestamp');
         setError(result.error.message || "Erro ao fazer login com Google");
         return false;
       }
@@ -140,11 +148,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Em modo popup (desktop), o resultado já está disponível
       if (!isMobile) {
         await fetchSession(); // Atualiza sessão no desktop
+        sessionStorage.removeItem('oauth_in_progress');
+        sessionStorage.removeItem('oauth_timestamp');
       }
       
       return true;
     } catch (err: any) {
       console.error('Google login error:', err);
+      sessionStorage.removeItem('oauth_in_progress');
+      sessionStorage.removeItem('oauth_timestamp');
       setError(err.message || "Erro ao fazer login com Google. Tente novamente.");
       return false;
     } finally {
