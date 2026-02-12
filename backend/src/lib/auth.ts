@@ -7,7 +7,6 @@ dotenv.config();
 const connectionString = `postgresql://${process.env.DATABASE_USER}:${process.env.DATABASE_PASSWORD}@${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}/${process.env.DATABASE_NAME}?sslmode=verify-full`;
 
 const isProduction = process.env.NODE_ENV === 'production';
-const isRailway = process.env.BACKEND_URL?.includes('.railway.app');
 
 export const auth = betterAuth({
   baseURL: process.env.BACKEND_URL || 'http://localhost:3000',
@@ -16,8 +15,9 @@ export const auth = betterAuth({
     'http://localhost:5172',
     'http://localhost:5173',
     'http://localhost:3000',
-    'https://auriel-financas.vercel.app',
-    'https://frontend-production-2a3f.up.railway.app', // ✅ Adicione o Railway frontend
+    'https://aurielfinancas.app',           // ✅ Novo domínio root
+    'https://www.aurielfinancas.app',       // ✅ Novo domínio www
+    'https://api.aurielfinancas.app',       // ✅ Novo domínio API
     process.env.FRONTEND_URL || 'http://localhost:5172',
   ],
   
@@ -46,8 +46,8 @@ export const auth = betterAuth({
   },
   
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 dias
-    updateAge: 60 * 60 * 24, // Atualiza a cada 24 horas
+    expiresIn: 60 * 60 * 24 * 7,
+    updateAge: 60 * 60 * 24,
     cookieCache: {
       enabled: true,
       maxAge: 5 * 60,
@@ -55,20 +55,22 @@ export const auth = betterAuth({
   },
   
   advanced: {
+    // 🎉 AGORA pode usar segurança máxima com domínio próprio!
+    useSecureCookies: true,
     
-    cookieOptions: {      
-      sameSite: isProduction ? 'lax' : 'lax',      
-      secure: isProduction,     
+    cookieOptions: {
+      sameSite: 'lax',
+      secure: true,
       httpOnly: true,
       path: '/',
-      domain: isProduction && isRailway 
-        ? 'aurielfinancas-production.up.railway.app'  
-        : undefined,
-    }, 
+      // 🔥 DOMÍNIO COMPARTILHADO - cookies funcionam entre api. e www.
+      domain: isProduction ? '.aurielfinancas.app' : undefined,
+    },
+    
     crossSubDomainCookies: {
       enabled: false,
-    }, 
-    useSecureCookies: isProduction,  
+    },
+    
     generateId: () => {
       return Math.random().toString(36).substring(2, 15) + 
              Math.random().toString(36).substring(2, 15);
