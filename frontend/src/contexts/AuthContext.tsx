@@ -116,13 +116,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const loginWithGoogle = async (): Promise<boolean> => {
-    setIsLoading(true);
-    setError(null);
-    
     try {
       // Detecta se é mobile (iOS/Android)
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      
+      console.log('[OAuth] Iniciando login Google:', { isMobile, mode: isMobile ? 'redirect' : 'popup' });
       
       // Marca que iniciou login com Google (para recuperar após redirect)
       if (isMobile) {
@@ -130,37 +128,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sessionStorage.setItem('oauth_timestamp', Date.now().toString());
       }
       
-      // No iOS/Mobile, usa redirect ao invés de popup
-      const result = await signIn.social({
+      // No iOS/Mobile usa redirect, desktop usa popup
+      await signIn.social({
         provider: "google",
         callbackURL: window.location.origin + "/auth-callback",
-        mode: isMobile ? "redirect" : "popup", // Redirect para mobile, popup para desktop
+        mode: isMobile ? "redirect" : "popup",
       });
       
-      if (result.error) {
-        sessionStorage.removeItem('oauth_in_progress');
-        sessionStorage.removeItem('oauth_timestamp');
-        setError(result.error.message || "Erro ao fazer login com Google");
-        return false;
-      }
-
-      // Em modo redirect (mobile), a página será recarregada após callback
-      // Em modo popup (desktop), o resultado já está disponível
-      if (!isMobile) {
-        await fetchSession(); // Atualiza sessão no desktop
-        sessionStorage.removeItem('oauth_in_progress');
-        sessionStorage.removeItem('oauth_timestamp');
-      }
+      // Se chegou aqui em desktop (popup), login já foi processado
+      // Em mobile (redirect), esta linha nunca executa pois página recarrega
+      console.log('[OAuth] Login Google concluído (modo popup)');
       
       return true;
     } catch (err: any) {
-      console.error('Google login error:', err);
+      console.error('[OAuth] Erro login Google:', err);
       sessionStorage.removeItem('oauth_in_progress');
       sessionStorage.removeItem('oauth_timestamp');
       setError(err.message || "Erro ao fazer login com Google. Tente novamente.");
       return false;
-    } finally {
-      setIsLoading(false);
     }
   };
 
