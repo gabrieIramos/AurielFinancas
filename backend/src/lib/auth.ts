@@ -48,19 +48,21 @@ export const auth = betterAuth({
   },
   advanced: {
     crossSubDomainCookies: {
-      // DISABLED: Quando true, BetterAuth seta domain automaticamente do baseURL
-      // Isso causa: Domain=aurielfinancas-production.up.railway.app (específico demais)
-      // Queremos: SEM domain (navegador decide) OU .up.railway.app (compartilhado)
-      enabled: false,
+      enabled: false, // Não usar auto-detect, vamos setar domain manualmente
     },
-    useSecureCookies: false, // Remove prefixo __Secure-
+    useSecureCookies: false, // Remove prefixo __Secure- (causa problemas)
     defaultCookieAttributes: {
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      // CRÍTICO: SameSite=None é necessário para OAuth cross-site redirects
+      // Lax não funciona quando redirect vem do Google (third-party)
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      secure: true, // SEMPRE true (obrigatório para sameSite=none)
       httpOnly: true,
       path: '/',
-      // NÃO especificar domain - deixa navegador gerenciar
-      // Com crossSubDomainCookies=false, domain não será setado automaticamente
+      // Domain compartilhado para Railway (permite frontend e backend compartilharem)
+      // Sem __Secure- prefix, domain funcionará corretamente
+      domain: process.env.NODE_ENV === 'production' && process.env.BACKEND_URL?.includes('.railway.app')
+        ? '.up.railway.app'
+        : undefined,
     },
     // Configuração específica para cookies de OAuth state
     generateId: () => {
