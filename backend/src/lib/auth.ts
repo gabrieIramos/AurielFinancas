@@ -4,8 +4,8 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-// Connection string para Neon
-const connectionString = `postgresql://${process.env.DATABASE_USER}:${process.env.DATABASE_PASSWORD}@${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}/${process.env.DATABASE_NAME}?sslmode=require`;
+// Connection string para Neon - com SSL verify-full recomendado
+const connectionString = `postgresql://${process.env.DATABASE_USER}:${process.env.DATABASE_PASSWORD}@${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}/${process.env.DATABASE_NAME}?sslmode=verify-full`;
 
 export const auth = betterAuth({
   baseURL: process.env.BACKEND_URL || 'http://localhost:3000',
@@ -48,18 +48,19 @@ export const auth = betterAuth({
   },
   advanced: {
     crossSubDomainCookies: {
-      enabled: true,
+      // DISABLED: Quando true, BetterAuth seta domain automaticamente do baseURL
+      // Isso causa: Domain=aurielfinancas-production.up.railway.app (específico demais)
+      // Queremos: SEM domain (navegador decide) OU .up.railway.app (compartilhado)
+      enabled: false,
     },
-    // IMPORTANTE: useSecureCookies=true adiciona prefixo __Secure- que causa problemas
-    // Mesmo com false, cookies ainda são secure=true via defaultCookieAttributes
-    useSecureCookies: false,
+    useSecureCookies: false, // Remove prefixo __Secure-
     defaultCookieAttributes: {
       sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production', // Ainda secure, mas SEM prefixo __Secure-
+      secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
       path: '/',
-      // NÃO especificar domain - deixa navegador gerenciar automaticamente
-      // Isso evita problemas com __Secure- cookies e cross-subdomain
+      // NÃO especificar domain - deixa navegador gerenciar
+      // Com crossSubDomainCookies=false, domain não será setado automaticamente
     },
     // Configuração específica para cookies de OAuth state
     generateId: () => {
