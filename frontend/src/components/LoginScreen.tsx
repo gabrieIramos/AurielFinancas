@@ -51,14 +51,23 @@ export default function LoginScreen({ onLoginSuccess, onBackToOnboarding, onSign
   };
 
   const handleGoogleLogin = async () => {
+    if (isGoogleLoading) return; // Previne duplo clique
+    
     setIsGoogleLoading(true);
+    clearError(); // Limpa erros anteriores
+    
     try {
-      const success = await loginWithGoogle();
-      if (success) {
-        onLoginSuccess();
-      }
+      await loginWithGoogle();
+      // onLoginSuccess não precisa ser chamado aqui
+      // O contexto já gerencia a autenticação via useSession
+    } catch (err) {
+      console.error('Erro ao iniciar login Google:', err);
     } finally {
-      setIsGoogleLoading(false);
+      // Não remove loading aqui se for mobile (redirect)
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      if (!isMobile) {
+        setIsGoogleLoading(false);
+      }
     }
   };
 

@@ -11,12 +11,17 @@ export default function AuthCallbackScreen() {
   useEffect(() => {
     const handleCallback = async () => {
       try {
+        console.log('[Callback] Iniciando processamento...');
+        console.log('[Callback] URL:', window.location.href);
+        
         // Verifica se há erro na URL (vindo do backend)
         const urlParams = new URLSearchParams(window.location.search);
         const errorParam = urlParams.get('error');
         
+        console.log('[Callback] Parâmetros URL:', Object.fromEntries(urlParams.entries()));
+        
         if (errorParam) {
-          console.error('OAuth error from URL:', errorParam);
+          console.error('[Callback] Erro OAuth da URL:', errorParam);
           
           // Limpa OAuth markers
           sessionStorage.removeItem('oauth_in_progress');
@@ -25,7 +30,7 @@ export default function AuthCallbackScreen() {
           // Define mensagem baseada no erro
           let message = 'Erro na autenticação.';
           if (errorParam === 'state_mismatch') {
-            message = 'Erro de segurança (state mismatch). Cookies podem estar bloqueados. Tente novamente.';
+            message = 'Erro de segurança (state mismatch). Cookies podem estar bloqueados. Verifique as configurações do navegador.';
           } else if (errorParam === 'access_denied') {
             message = 'Acesso negado. Você cancelou a autenticação.';
           }
@@ -34,13 +39,15 @@ export default function AuthCallbackScreen() {
           setStatus("error");
           setTimeout(() => {
             window.location.href = "/";
-          }, 4000);
+          }, 5000);
           return;
         }
         
         // Verifica se há OAuth em progresso
         const oauthInProgress = sessionStorage.getItem('oauth_in_progress');
         const oauthTimestamp = sessionStorage.getItem('oauth_timestamp');
+        
+        console.log('[Callback] OAuth markers:', { oauthInProgress, oauthTimestamp });
         
         // Verifica se o OAuth expirou (mais de 5 minutos)
         if (oauthTimestamp) {
