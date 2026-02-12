@@ -7,9 +7,15 @@ dotenv.config();
 // Connection string para Neon
 const connectionString = `postgresql://${process.env.DATABASE_USER}:${process.env.DATABASE_PASSWORD}@${process.env.DATABASE_HOST}:${process.env.DATABASE_PORT}/${process.env.DATABASE_NAME}?sslmode=require`;
 
-// Configuração do BetterAuth com PostgreSQL
 export const auth = betterAuth({
   baseURL: process.env.BACKEND_URL || 'http://localhost:3000',
+  trustedOrigins: [
+    'http://localhost:5172',
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://auriel-financas.vercel.app',
+    process.env.FRONTEND_URL || 'http://localhost:5172',
+  ],
   database: new Pool({
     connectionString,
     ssl: {
@@ -24,7 +30,10 @@ export const auth = betterAuth({
     google: {
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      prompt: "select_account", // Sempre mostra a tela de seleção de conta
+      redirectURI: `${process.env.BACKEND_URL || 'http://localhost:3000'}/api/auth/callback/google`,
+      prompt: "select_account",
+      accessType: "offline",
+      callbackURL: `${process.env.FRONTEND_URL || 'http://localhost:5172'}/auth-callback`,
     },
   },
   session: {
@@ -54,13 +63,6 @@ export const auth = betterAuth({
       },
     },
   },
-  trustedOrigins: [
-    'http://localhost:5172',
-    'http://localhost:5173',
-    'http://localhost:3000',
-    'https://auriel-financas.vercel.app',
-    process.env.FRONTEND_URL || 'http://localhost:5172',
-  ],
 });
 
 export type Session = typeof auth.$Infer.Session;

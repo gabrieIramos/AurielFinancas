@@ -120,9 +120,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
+      // Detecta se é mobile (iOS/Android)
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      
+      // No iOS/Mobile, usa redirect ao invés de popup
       const result = await signIn.social({
         provider: "google",
-        callbackURL: window.location.origin,
+        callbackURL: window.location.origin + "/auth-callback",
+        mode: isMobile ? "redirect" : "popup", // Redirect para mobile, popup para desktop
       });
       
       if (result.error) {
@@ -130,9 +136,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      // O redirecionamento será feito automaticamente
+      // Em modo redirect (mobile), a página será recarregada após callback
+      // Em modo popup (desktop), o resultado já está disponível
+      if (!isMobile) {
+        await fetchSession(); // Atualiza sessão no desktop
+      }
+      
       return true;
     } catch (err: any) {
+      console.error('Google login error:', err);
       setError(err.message || "Erro ao fazer login com Google. Tente novamente.");
       return false;
     } finally {

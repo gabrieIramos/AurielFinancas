@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Home, FileText, PieChart, Brain, User } from "lucide-react";
 import { ThemeProvider, useTheme } from "./contexts/ThemeContext";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
@@ -11,6 +11,7 @@ import OnboardingScreen from "./components/OnboardingScreen";
 import LoginScreen from "./components/LoginScreen";
 import SignupScreen from "./components/SignupScreen";
 import FinancialProfileForm from "./components/FinancialProfileForm";
+import AuthCallbackScreen from "./components/AuthCallbackScreen";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { Toaster } from "./components/ui/sonner";
 
@@ -22,6 +23,14 @@ function AppContent() {
   const [authView, setAuthView] = useState<AuthView>("login");
   const { theme } = useTheme();
   const { isAuthenticated, hasSeenOnboarding, hasFinancialProfile, completeOnboarding, completeFinancialProfile } = useAuth();
+
+  // Verifica se está na rota de callback do OAuth
+  const isAuthCallback = window.location.pathname === "/auth-callback";
+
+  // Se for callback, mostra tela de callback
+  if (isAuthCallback) {
+    return <AuthCallbackScreen />;
+  }
 
   const tabs = [
     { id: "home" as Tab, icon: Home, label: "Home" },
