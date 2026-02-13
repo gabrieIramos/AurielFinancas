@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, JSX } from "react";
 import { 
-  Plus, TrendingUp, TrendingDown, Trash2, Loader2, Search, X, Calendar, 
+  Plus, TrendingUp, TrendingDown, Trash2, Search, X, Calendar, 
   Landmark, ChevronRight, ChevronLeft, PiggyBank, Bitcoin, 
   Building2, LineChart, Coins, BadgePercent, Pencil, Check, XCircle
 } from "lucide-react";
@@ -19,6 +19,7 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
 import { useTheme } from "../contexts/ThemeContext";
+import Loading from "./Loading";
 import {
   investmentsService,
   Ativo,
@@ -582,7 +583,7 @@ export default function CarteiraScreen() {
   if (loading) {
     return (
       <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} flex items-center justify-center`}>
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+        <Loading size="lg" color="emerald" />
       </div>
     );
   }
@@ -1302,8 +1303,8 @@ export default function CarteiraScreen() {
             )}
 
             <Button onClick={handleAdicionarTransacao} disabled={saving || !selectedAtivo || !novaQuantidade || !novoPreco}
-              style={{ backgroundColor: tipoTransacao === "compra" ? "#059669" : "#dc2626" }} className="w-full py-3 text-white hover:opacity-90">
-              {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              style={{ backgroundColor: tipoTransacao === "compra" ? "#059669" : "#dc2626" }} className="w-full py-3 text-white hover:opacity-90 flex items-center justify-center gap-2">
+              {saving && <Loading size="sm" color="white" inline />}
               Confirmar {tipoTransacao === "compra" ? "Compra" : "Venda"}
             </Button>
           </div>
@@ -1390,8 +1391,8 @@ export default function CarteiraScreen() {
 
             <Button onClick={handleAdicionarRendaFixa}
               disabled={saving || !fixedIncomeName || !fixedIncomeAmount || !fixedIncomeRate || hasFixedIncomeValidationErrors}
-              className="w-full h-10 bg-purple-600 text-white hover:bg-purple-700 text-sm">
-              {saving && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+              className="w-full h-10 bg-purple-600 text-white hover:bg-purple-700 text-sm flex items-center justify-center gap-2">
+              {saving && <Loading size="sm" color="white" inline />}
               Adicionar Investimento
             </Button>
           </div>
@@ -1411,7 +1412,7 @@ export default function CarteiraScreen() {
           </DialogHeader>
           <div className="mt-4">
             {loadingTransactions ? (
-              <div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-emerald-600" /></div>
+              <div className="flex items-center justify-center py-8"><Loading size="lg" color="emerald" /></div>
             ) : transactions.length === 0 ? (
               <p className={`text-center py-8 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>Nenhuma transação encontrada</p>
             ) : (
@@ -1432,8 +1433,8 @@ export default function CarteiraScreen() {
                                 <XCircle className="w-4 h-4 text-zinc-400" />
                               </button>
                               <button onClick={() => handleSaveEdit(transaction.id, transaction.quantity)} disabled={savingEdit}
-                                className="p-1.5 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50" title="Salvar">
-                                {savingEdit ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Check className="w-4 h-4 text-white" />}
+                                className="p-1.5 rounded bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 flex items-center justify-center" title="Salvar">
+                                {savingEdit ? <Loading size="sm" color="white" inline /> : <Check className="w-4 h-4 text-white" />}
                               </button>
                             </div>
                           </div>

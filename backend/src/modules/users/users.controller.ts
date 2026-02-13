@@ -28,6 +28,14 @@ export class UsersController {
 
   @UseGuards(BetterAuthGuard)
   @ApiBearerAuth()
+  @Get('financial-profile/check')
+  async checkFinancialProfile(@Request() req) {
+    const hasProfile = await this.usersService.hasCompletedFinancialProfile(req.user.id);
+    return { hasProfile };
+  }
+
+  @UseGuards(BetterAuthGuard)
+  @ApiBearerAuth()
   @Get('financial-profile')
   async getFinancialProfile(@Request() req) {
     const profile = await this.usersService.getFinancialProfile(req.user.id);
@@ -54,13 +62,5 @@ export class UsersController {
   ) {
     const profile = await this.usersService.createOrUpdateFinancialProfile(req.user.id, dto);
     return { profile };
-  }
-
-  @UseGuards(BetterAuthGuard)
-  @ApiBearerAuth()
-  @Get('financial-profile/check')
-  async checkFinancialProfile(@Request() req) {
-    const hasProfile = await this.usersService.hasCompletedFinancialProfile(req.user.id);
-    return { hasProfile };
   }
 }

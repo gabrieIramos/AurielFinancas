@@ -218,7 +218,10 @@ export class UsersService {
         'increase-income': 'Aumentar renda',
         'retire-early': 'Aposentadoria antecipada',
         'buy-house': 'Comprar imóvel',
+        'buy-property': 'Comprar imóvel',
         'travel': 'Viajar',
+        'buy-car': 'Comprar carro',
+        'financial-freedom': 'Liberdade financeira',
       };
       parts.push(`Objetivos financeiros: ${profile.mainFinancialGoals.map(g => goalsMap[g] || g).join(', ')}`);
     }
@@ -231,6 +234,8 @@ export class UsersService {
         'increase-income': 'Aumentar renda',
         'pay-debts': 'Pagar dívidas',
         'organize-finances': 'Organizar finanças',
+        'control-debts': 'Controlar dívidas',
+        'optimize-portfolio': 'Otimizar portfólio',
       };
       parts.push(`Maior desafio financeiro: ${challengeMap[profile.biggestFinancialChallenge] || profile.biggestFinancialChallenge}`);
     }

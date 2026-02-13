@@ -15,6 +15,7 @@ type AuthContextType = {
   isAuthenticated: boolean;
   hasSeenOnboarding: boolean;
   hasFinancialProfile: boolean;
+  isCheckingProfile: boolean;
   isLoading: boolean;
   error: string | null;
   login: (email: string, password: string) => Promise<boolean>;
@@ -33,6 +34,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hasFinancialProfile, setHasFinancialProfile] = useState(false);
+  const [isCheckingProfile, setIsCheckingProfile] = useState(false);
+  const [hasCheckedProfileOnce, setHasCheckedProfileOnce] = useState(false);
   const [hasSeenOnboarding, setHasSeenOnboarding] = useState(() => {
     // Verifica se é a primeira visita ao site (não por usuário, mas pelo navegador)
     const seen = localStorage.getItem("hasSeenOnboarding");
@@ -57,11 +60,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else if (!isPending) {
       setUser(null);
       setHasFinancialProfile(false);
+      setIsCheckingProfile(false);
     }
     setIsLoading(isPending);
   }, [session, isPending]);
 
   const checkFinancialProfile = async () => {
+    if (!hasCheckedProfileOnce) {
+      setIsCheckingProfile(true);
+    }
     try {
       const response = await userService.checkFinancialProfile();
       if (response.data) {
@@ -69,6 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     } catch (err) {
       console.error('Erro ao verificar perfil financeiro:', err);
+      setHasFinancialProfile(false);
+    } finally {
+      setIsCheckingProfile(false);
+      setHasCheckedProfileOnce(true);
     }
   };
 
@@ -206,6 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         hasSeenOnboarding,
         hasFinancialProfile,
+        isCheckingProfile,
         isLoading,
         error,
         login,

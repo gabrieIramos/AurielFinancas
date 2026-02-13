@@ -95,7 +95,7 @@ export default function PrivacySecurityModal({ isOpen, onClose, theme }: Privacy
             title="Dados Enviados para a IA"
             icon={<AlertTriangle className="w-5 h-5 text-amber-400" />}
             theme={theme}
-            defaultOpen={true}
+            defaultOpen={false}
           >
             <div className="space-y-3">
               <p>

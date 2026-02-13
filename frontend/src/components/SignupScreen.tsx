@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
+import Loading from "./Loading";
 
 // Ícone do Google
 const GoogleIcon = () => (
@@ -200,7 +201,7 @@ export default function SignupScreen({ onSignupSuccess, onBackToLogin }: SignupS
               >
                 {isLoading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loading size="sm" color="white" inline />
                     Criando conta...
                   </>
                 ) : (
@@ -232,7 +233,7 @@ export default function SignupScreen({ onSignupSuccess, onBackToLogin }: SignupS
               >
                 {isGoogleLoading ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <Loading size="sm" color="text" inline />
                     Conectando...
                   </>
                 ) : (

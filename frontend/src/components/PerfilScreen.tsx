@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { User, Mail, Phone, Bell, Shield, HelpCircle, LogOut, ChevronRight, Upload, FileText, Moon, Sun, X, Download, Loader2, Check } from "lucide-react";
+import { User, Mail, Phone, Bell, Shield, HelpCircle, LogOut, ChevronRight, Upload, FileText, Moon, Sun, X, Download, Check } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { Switch } from "./ui/switch";
 import { investmentsService, PortfolioItem, FixedIncomeInvestment } from "../services/investments.service";
 import * as XLSX from "xlsx";
 import PrivacySecurityModal from "./PrivacySecurityModal";
+import Loading from "./Loading";
 
 // Mock user data will be replaced by auth context
 const menuItems = [
@@ -430,7 +431,7 @@ className={`w-full p-3 rounded-xl flex items-center justify-between ${
                   </div>
                 </div>
                 {isExporting ? (
-                  <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
+                  <Loading size="sm" color="text" inline />
                 ) : (
                   <Download className={`w-5 h-5 ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />
                 )}
@@ -453,7 +454,7 @@ className={`w-full p-3 rounded-xl flex items-center justify-between ${
                   </div>
                 </div>
                 {isExporting ? (
-                  <Loader2 className="w-5 h-5 text-zinc-400 animate-spin" />
+                  <Loading size="sm" color="text" inline />
                 ) : (
                   <Download className={`w-5 h-5 ${theme === "dark" ? "text-zinc-500" : "text-zinc-400"}`} />
                 )}
@@ -474,7 +475,7 @@ className={`w-full p-3 rounded-xl flex items-center justify-between ${
                   </div>
                 </div>
                 {isExporting ? (
-                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                  <Loading size="sm" color="white" inline />
                 ) : (
                   <Download className="w-5 h-5 text-white" />
                 )}
