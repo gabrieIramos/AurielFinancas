@@ -364,8 +364,8 @@ export default function PerfilScreen() {
 
         {/* Version Info */}
         <div className="mt-6 text-center">
-          <p className={`${theme === "dark" ? "text-zinc-500" : "text-zinc-400"} text-xs`}>Versão 1.0.0</p>
-          <p className={`${theme === "dark" ? "text-zinc-600" : "text-zinc-500"} text-xs mt-1`}>© 2024 Auriel Financas. Todos os direitos reservados.</p>
+            <p className={`${theme === "dark" ? "text-zinc-500" : "text-zinc-400"} text-xs`}>Versão 1.0.0</p>
+          <p className={`${theme === "dark" ? "text-zinc-600" : "text-zinc-500"} text-xs mt-1`}>© {new Date().getFullYear()} Auriel Financas. Todos os direitos reservados.</p>
         </div>
       </div>
 

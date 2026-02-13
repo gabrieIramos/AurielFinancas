@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Cron } from '@nestjs/schedule';
 import { Ativo } from '../entities/ativo.entity';
+import { env } from 'process';
 
 interface BrapiQuoteResponse {
   results: {
@@ -231,6 +232,10 @@ export class BrapiService {
     try {
       // Limpa falhas anteriores no início de uma nova atualização completa
       this.clearFailedAtivos();
+
+      if (process.env.NODE_ENV === 'development') {
+        return;
+      }
       
       // Buscar todos os ativos do banco
       const ativos = await this.ativoRepository.find();

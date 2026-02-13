@@ -1,5 +1,6 @@
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Post, Get, Delete, Body, Param, UseGuards, Request } from '@nestjs/common';
 import { AiService } from './ai.service';
+import { MemoryService } from './memory.service';
 import { BetterAuthGuard } from '../auth/guards/better-auth.guard';
 
 interface FinancialKPIs {
@@ -67,7 +68,10 @@ interface AIInitialInsights {
 @Controller('ai')
 @UseGuards(BetterAuthGuard)
 export class AiController {
-  constructor(private readonly aiService: AiService) {}
+  constructor(
+    private readonly aiService: AiService,
+    private readonly memoryService: MemoryService,
+  ) {}
 
   @Post('chat')
   async chat(@Body() body: ChatRequest, @Request() req): Promise<{ response: string }> {
@@ -77,6 +81,25 @@ export class AiController {
 
   @Post('insights')
   async generateInsights(@Body() body: InsightsRequest, @Request() req): Promise<AIInitialInsights> {
-    return this.aiService.generateInsights(body.kpis);
+    // Passa o userId para personalizar os insights com o perfil financeiro
+    return this.aiService.generateInsights(body.kpis, req.user?.id);
+  }
+
+  @Get('memories')
+  async getMemories(@Request() req) {
+    const memories = await this.memoryService.getRelevantMemories(req.user?.id, 50);
+    return { memories };
+  }
+
+  @Get('memories/recent')
+  async getRecentMemories(@Request() req) {
+    const memories = await this.memoryService.getRecentMemories(req.user?.id, 30);
+    return { memories };
+  }
+
+  @Delete('memories/:id')
+  async deactivateMemory(@Param('id') memoryId: string) {
+    await this.memoryService.deactivateMemory(memoryId);
+    return { success: true };
   }
 }
