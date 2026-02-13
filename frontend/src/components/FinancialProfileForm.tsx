@@ -18,7 +18,8 @@ import {
   Shield,
   TrendingDown,
   DollarSign,
-  ArrowLeft
+  ArrowLeft,
+  DollarSignIcon
 } from 'lucide-react';
 import { userService, FinancialProfile } from "../services/user.service";
 import { useTheme } from "../contexts/ThemeContext";
@@ -119,6 +120,12 @@ export default function FinancialProfileForm({ onComplete, onSkip }: FinancialPr
   };
 
   const mapToProfile = (data: FormData): FinancialProfile => {
+    const challengeMap: Record<string, string> = {
+      'dividas': 'Controlar dívidas',
+      'equilibrio': 'Guardar dinheiro',
+      'investindo': 'Otimizar investimentos'
+    };
+
     return {
       ageRange: data.idade,
       monthlyIncomeRange: data.rendaEstimada,
@@ -129,8 +136,9 @@ export default function FinancialProfileForm({ onComplete, onSkip }: FinancialPr
       emergencyFundMonths: data.tempoReserva,
       investmentExperience: data.conhecimentoInvestimento,
       currentInvestments: data.investimentosAtuais,
+      investmentHorizon: data.prazoObjetivo,
       mainFinancialGoals: [data.objetivoPrincipal],
-      biggestFinancialChallenge: data.situacaoFinanceira,
+      biggestFinancialChallenge: challengeMap[data.situacaoFinanceira] || data.situacaoFinanceira,
       profileCompleted: true
     };
   };
@@ -682,7 +690,7 @@ export default function FinancialProfileForm({ onComplete, onSkip }: FinancialPr
                   { value: 'Casa própria', label: 'Comprar minha casa', icon: Home, color: 'text-blue-500' },
                   { value: 'Viajar', label: 'Viajar pelo mundo', icon: Plane, color: 'text-purple-500' },
                   { value: 'Carro', label: 'Trocar de carro', icon: Car, color: 'text-orange-500' },
-                  { value: 'Liberdade financeira', label: 'Liberdade financeira', icon: Zap, color: 'text-yellow-500' },
+                  { value: 'Liberdade financeira', label: 'Liberdade financeira', icon: DollarSignIcon, color: 'text-yellow-500' },
                   { value: 'Reserva', label: 'Criar uma reserva', icon: Shield, color: 'text-emerald-500' }
                 ].map(item => {
                   const Icon = item.icon;

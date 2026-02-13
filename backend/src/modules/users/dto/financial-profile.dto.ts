@@ -67,6 +67,10 @@ export class CreateFinancialProfileDto {
   @IsOptional()
   @IsString()
   biggestFinancialChallenge?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  profileCompleted?: boolean;
 }
 
 export class UpdateFinancialProfileDto extends CreateFinancialProfileDto {}
