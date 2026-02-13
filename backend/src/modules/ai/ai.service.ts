@@ -6,6 +6,7 @@ import Groq from 'groq-sdk';
 import { AiCategoryCache } from './entities/ai-category-cache.entity';
 import { Category } from '../categories/entities/category.entity';
 import { UsersService } from '../users/users.service';
+import { MemoryService } from './memory.service';
 
 interface CategorizationResult {
   categoryId: string;
@@ -256,6 +257,7 @@ export class AiService {
     @InjectRepository(Category)
     private categoryRepository: Repository<Category>,
     private usersService: UsersService,
+    private memoryService: MemoryService,
   ) {
     const apiKey = this.configService.get<string>('GROQ_API_KEY');
     this.isConfigured = !!apiKey;
@@ -706,13 +708,35 @@ JSON: {"results":[{"index":1,"merchant":"NOME","category":"Cat","confidence":0.9
 
     // Buscar perfil financeiro do usuário para personalização
     let userProfileContext = '';
+    
+    // Buscar memórias relevantes do usuário
+    let memoriesContext = '';
     if (userId) {
       const profileText = await this.usersService.getFinancialProfileForAI(userId);
       if (profileText) {
-        userProfileContext = `\n\nPERFIL DO USUÁRIO:
+        userProfileContext = `\n\n📋 PERFIL FINANCEIRO DO USUÁRIO:
 ${profileText}
 
-Use essas informações sobre o perfil do usuário para personalizar suas respostas e sugestões.`;
+💡 INSTRUÇÕES PERSONALIZADAS:
+- Trate o usuário pelo primeiro nome quando apropriado
+- Use o perfil para fazer análises e sugestões ESPECÍFICAS e PERSONALIZADAS
+- Se o usuário tem dívidas, priorize orientações para quitá-las
+- Calcule quanto ele PODE investir mensalmente baseado em: renda - gastos - reserva de segurança
+- Sugira aportes mensais realistas considerando seu prazo de objetivo
+- Compare a carteira atual dele com o perfil de risco ideal
+- Dê feedback sobre os gastos dele baseado na renda e situação
+- Seja amigável, empática e motivador, como uma consultora financeira pessoal
+- NUNCA dê respostas genéricas - sempre cite dados reais do perfil`;
+      }
+
+      // Buscar memórias importantes do usuário
+      this.logger.debug(`🎯 Buscando memórias para usuário ${userId.substring(0, 8)}...`);
+      const memories = await this.memoryService.getRelevantMemories(userId, 10);
+      if (memories && memories.length > 0) {
+        this.logger.log(`💭 ${memories.length} memórias carregadas no contexto do chat`);
+        memoriesContext = this.memoryService.formatMemoriesForContext(memories);
+      } else {
+        this.logger.debug(`ℹ️ Nenhuma memória encontrada para este usuário`);
       }
     }
 
@@ -723,34 +747,46 @@ Use essas informações sobre o perfil do usuário para personalizar suas respos
         ).join('\n')
       : 'Nenhum ativo na carteira';
 
-    const systemPrompt = `Você é um assistente financeiro pessoal amigável e experiente.
-Você tem acesso aos seguintes dados financeiros do usuário:
+    const systemPrompt = `Você é uma consultora financeira pessoal experiente, amigável e motivadora chamada Sofia.
+Seu objetivo é ajudar o usuário a alcançar suas metas financeiras de forma realista e sustentável.
 
-RESUMO DOS ÚLTIMOS 30 DIAS:
+💰 DADOS FINANCEIROS DO USUÁRIO (últimos 30 dias):
 - Receitas totais: R$ ${kpis.totalIncome.toFixed(2)}
 - Despesas totais: R$ ${kpis.totalExpenses.toFixed(2)}
 - Saldo do período: R$ ${kpis.balance.toFixed(2)}
 - Total de transações: ${kpis.transactionCount}
 - Maiores categorias de gastos: ${kpis.topExpenseCategories.map(c => `${c.name} (R$ ${c.amount.toFixed(2)} - ${c.percentage.toFixed(1)}%)`).join(', ') || 'Nenhuma'}
 
-CARTEIRA DE INVESTIMENTOS:
+📊 CARTEIRA DE INVESTIMENTOS:
 - Valor total: R$ ${kpis.portfolioValue.toFixed(2)}
 - Lucro/Prejuízo total: R$ ${kpis.portfolioProfitLoss.toFixed(2)} (${kpis.portfolioProfitLossPercentage.toFixed(2)}%)
 - Total de ativos: ${kpis.totalAssets}
 - Distribuição por tipo: ${kpis.portfolioDistribution.map(d => `${d.tipo}: ${d.percentage.toFixed(1)}%`).join(', ') || 'Nenhuma'}
 
-ATIVOS NA CARTEIRA (detalhado):
-${assetsInfo}${userProfileContext}
+🎯 ATIVOS NA CARTEIRA (detalhado):
+${assetsInfo}${userProfileContext}${memoriesContext}
 
-Regras:
-1. Responda de forma concisa e direta
-2. Use os dados financeiros quando relevante
-3. Dê sugestões práticas e personalizadas baseadas no perfil do usuário
-4. Seja amigável mas profissional
-5. Responda em português brasileiro
-6. Quando perguntado sobre ativos específicos, use os dados detalhados acima
-7. Considere o perfil de risco, objetivos e desafios do usuário nas suas recomendações
-8. IMPORTANTE: As sugestões são apenas informativas e não constituem recomendação de investimento`;
+📝 SUAS DIRETRIZES COMO CONSULTORA:
+1. Seja PESSOAL e EMPÁTICA - trate como uma conversa entre amigos
+2. SEMPRE calcule o potencial de aporte mensal do usuário:
+   • Fórmula: Renda Mensal - Despesas Médias - 10% (margem segurança)
+   • Exemplo: Se ganha R$ 3.500 e gasta R$ 2.000 → pode aportar ~R$ 1.150/mês
+3. Relacione os aportes sugeridos com o PRAZO DO OBJETIVO do usuário
+4. Analise se os GASTOS estão coerentes com a renda (alert se > 70%)
+5. Compare a CARTEIRA atual com o perfil de risco ideal do usuário
+6. Se tem dívidas, priorize orientações de quitação antes de novos investimentos
+7. Dê exemplos NUMÉRICOS e PRÁTICOS baseados nos dados reais
+8. Seja MOTIVADORA mas REALISTA - não prometa milagres
+9. Use emojis ocasionalmente para deixar a conversa mais leve
+10. Responda de forma CONCISA - máximo 200 palavras por resposta
+
+⚠️ IMPORTANTE: 
+- Suas sugestões são EDUCATIVAS, não constituem recomendação de investimento
+- Sempre incentive o usuário a estudar mais sobre finanças
+- Lembre que diversificação é fundamental
+- Encoraje a construção de reserva de emergência (6-12 meses de gastos)
+
+Responda em português brasileiro de forma natural e conversacional.`;
 
     try {
       const messages = [
@@ -768,7 +804,16 @@ Regras:
         temperature: 0.7,        
       });
 
-      return { response: completion.choices[0].message.content || 'Desculpe, não consegui processar sua mensagem.' };
+      const aiResponse = completion.choices[0].message.content || 'Desculpe, não consegui processar sua mensagem.';
+
+      // Extrair e salvar fatos relevantes em background (não bloquear resposta)
+      if (userId) {
+        this.extractAndSaveMemories(userId, message, aiResponse).catch(err => {
+          this.logger.error(`Erro ao processar memórias: ${err.message}`);
+        });
+      }
+
+      return { response: aiResponse };
     } catch (error) {
       this.logger.error(`Chat Error: ${error.message}`);
       return { response: 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.' };
@@ -776,12 +821,73 @@ Regras:
   }
 
   /**
+   * Extrai e salva memórias em background
+   */
+  private async extractAndSaveMemories(userId: string, userMessage: string, aiResponse: string): Promise<void> {
+    try {
+      this.logger.debug(`🧠 Iniciando extração de memórias para usuário ${userId.substring(0, 8)}...`);
+      this.logger.debug(`   Mensagem do usuário: "${userMessage.substring(0, 100)}..."`);
+      
+      const facts = await this.memoryService.extractRelevantFacts(userMessage, aiResponse);
+      
+      if (facts && facts.length > 0) {
+        this.logger.log(`🎯 Fatos extraídos: ${facts.length}`);
+        await this.memoryService.saveMemories(userId, facts);
+      } else {
+        this.logger.debug(`ℹ️ Nenhum fato relevante encontrado nesta conversa`);
+      }
+    } catch (error) {
+      this.logger.error(`❌ Erro ao extrair/salvar memórias: ${error.message}`);
+      this.logger.error(error.stack);
+    }
+  }
+
+  /**
    * Gera insights iniciais baseados nas KPIs usando IA
    */
-  async generateInsights(kpis: FinancialKPIs): Promise<AIInitialInsights> {
+  async generateInsights(kpis: FinancialKPIs, userId?: string): Promise<AIInitialInsights> {
     // Se a IA não estiver configurada, usar fallback local
     if (!this.isConfigured) {
       return this.generateLocalInsights(kpis);
+    }
+
+    // Buscar perfil financeiro do usuário para personalização
+    let userProfileContext = '';
+    let perfilObjetivo = 'crescimento patrimonial no médio/longo prazo';
+    let perfilRisco = 'moderado';
+    
+    if (userId) {
+      const profileText = await this.usersService.getFinancialProfileForAI(userId);
+      if (profileText) {
+        userProfileContext = `\n\nPERFIL DO USUÁRIO:\n${profileText}\n`;
+        
+        // Extrair informações específicas do perfil se disponível
+        const profile = await this.usersService.getFinancialProfile(userId);
+        if (profile) {
+          // Mapear objetivo principal
+          if (profile.mainFinancialGoals && profile.mainFinancialGoals.length > 0) {
+            const goalMap: Record<string, string> = {
+              'retire-early': 'aposentadoria antecipada',
+              'buy-property': 'compra de imóvel',
+              'travel': 'viagens e lazer',
+              'buy-car': 'compra de veículo',
+              'financial-freedom': 'liberdade financeira',
+              'build-emergency': 'construção de reserva de emergência',
+            };
+            perfilObjetivo = goalMap[profile.mainFinancialGoals[0]] || profile.mainFinancialGoals[0];
+          }
+          
+          // Mapear perfil de risco baseado em conhecimento de investimento
+          if (profile.investmentExperience) {
+            const riskMap: Record<string, string> = {
+              'beginner': 'conservador',
+              'intermediate': 'moderado',
+              'advanced': 'arrojado',
+            };
+            perfilRisco = riskMap[profile.investmentExperience] || 'moderado';
+          }
+        }
+      }
     }
 
     // Formatar lista de ativos detalhada para o prompt
@@ -799,10 +905,10 @@ Regras:
     const prompt = `
 Você é um consultor financeiro pessoal SÊNIOR, focado em gerar insights acionáveis, específicos e personalizados.
 Respostas genéricas INVALIDAM a análise.
-
+${userProfileContext}
 PERFIL DO USUÁRIO:
-- Objetivo: crescimento patrimonial no médio/longo prazo
-- Perfil de risco: moderado
+- Objetivo principal: ${perfilObjetivo}
+- Perfil de risco: ${perfilRisco}
 
 DADOS FINANCEIROS (últimos 30 dias):
 - Receitas: R$ ${kpis.totalIncome.toFixed(2)}
@@ -829,12 +935,15 @@ CRITÉRIOS OBRIGATÓRIOS:
 - Queda >10% + grande posição → ANÁLISE DE RISCO
 - Alta >15% + grande posição → SUGESTÃO de rebalanceamento
 - Classe de ativos >50% → risco de diversificação
+- SEMPRE incluir uma sugestão sobre APORTES MENSAIS baseada em: Receita - Despesas - margem de 10%
 
 REGRAS:
 - Máx: 3 alertas, 2 análises de risco, 3 sugestões
-- Cite sempre tickers reais
+- Cite sempre tickers reais quando aplicável
 - Toda descrição deve conter pelo menos 1 dado numérico
 - Frases genéricas são PROIBIDAS
+- Seja amigável, empática e pessoal no tom
+- Uma das sugestões DEVE ser sobre potencial de aporte mensal
 
 ANÁLISE DE EVENTOS EXTREMOS (OBRIGATÓRIA):
 - Qualquer ativo com queda acumulada superior a 40% deve ser tratado como EVENTO EXTREMO.
@@ -855,7 +964,7 @@ Retorne APENAS um JSON válido seguindo EXATAMENTE esta estrutura:
       "id": "1",
       "tipo": "alerta" ou "oportunidade",
       "titulo": "Título curto do alerta",
-      "descricao": "Descrição detalhada com dados numéricos",
+      "descricao": "Descrição detalhada com dados numéricos e tom amigável",
       "valor": "R$ X.XXX,XX" (opcional, quando aplicável)
     }
   ],
@@ -864,7 +973,7 @@ Retorne APENAS um JSON válido seguindo EXATAMENTE esta estrutura:
       "id": "1",
       "nivel": "baixo", "medio" ou "alto",
       "titulo": "Título da análise de risco",
-      "descricao": "Descrição detalhada com dados numéricos"
+      "descricao": "Descrição detalhada com dados numéricos e tom pessoal"
     }
   ],
   "sugestoes": [
@@ -872,13 +981,16 @@ Retorne APENAS um JSON válido seguindo EXATAMENTE esta estrutura:
       "id": "1",
       "tipo": "info" ou "oportunidade",
       "titulo": "Título da sugestão",
-      "descricao": "Descrição detalhada da sugestão",
+      "descricao": "Descrição detalhada da sugestão com tom amigável e motivador",
       "valor": "R$ X.XXX,XX" (opcional)
     }
   ]
 }
 
-IMPORTANTE: Cada item DEVE ter id, tipo/nivel, titulo e descricao. IDs devem ser strings únicas ("1", "2", "3"...).
+IMPORTANTE: 
+- Cada item DEVE ter id, tipo/nivel, titulo e descricao. IDs devem ser strings únicas ("1", "2", "3"...).
+- Use tom amigável e personalizado baseado no perfil do usuário
+- Inclua emojis ocasionalmente para deixar mais leve (💰, 📊, 🎯, etc)
 Responda em português brasileiro.
 `;
 

@@ -112,12 +112,12 @@ export default function IAScreen() {
       const generatedInsights = await aiService.generateInitialInsights(collectedKpis);
       setInsights(generatedInsights);
       
-      // 3. Mensagem inicial simples
+      // 3. Mensagem inicial personalizada
       setMessages([
         {
           id: "1",
           tipo: "ai",
-          texto: "Olá! Sou sua assistente de finanças. Analisei seus dados e preparei alguns insights acima. Como posso te ajudar?",
+          texto: "Oi! Sou a Sofia, sua consultora financeira pessoal 💰✨\n\nAnalisei seus dados financeiros e já preparei alguns insights personalizados acima. Posso te ajudar com:\n\n• Análise da sua carteira de investimentos\n• Sugestões de aportes mensais baseados na sua renda\n• Dicas para otimizar seus gastos\n• Estratégias para alcançar seus objetivos\n\nComo posso te ajudar hoje?",
         },
       ]);
     } catch (error) {
@@ -126,7 +126,7 @@ export default function IAScreen() {
         {
           id: "1",
           tipo: "ai",
-          texto: "Olá! Sou sua assistente de finanças. Tive dificuldade em carregar seus dados, mas ainda posso responder suas perguntas!",
+          texto: "Oi! Sou a Sofia, sua consultora financeira pessoal 💰\n\nTive dificuldade em carregar alguns dados, mas ainda posso responder suas perguntas sobre finanças e investimentos!",
         },
       ]);
     } finally {
@@ -456,8 +456,54 @@ export default function IAScreen() {
       <div className="flex-1 px-4 pb-4 flex flex-col">
         <h3 className="mb-3 flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-purple-500" />
-          Chat com IA
+          Converse com a Sofia
         </h3>
+
+        {/* Quick Suggestions */}
+        {messages.length === 1 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            <button
+              onClick={() => setInputValue("Quanto posso investir por mês?")}
+              className={`px-4 py-2 rounded-full text-xs ${
+                theme === "dark" 
+                  ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700" 
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+              } transition-colors`}
+            >
+              💰 Quanto posso investir?
+            </button>
+            <button
+              onClick={() => setInputValue("Como está minha carteira?")}
+              className={`px-4 py-2 rounded-full text-xs ${
+                theme === "dark" 
+                  ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700" 
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+              } transition-colors`}
+            >
+              📊 Análise da carteira
+            </button>
+            <button
+              onClick={() => setInputValue("Como reduzir meus gastos?")}
+              className={`px-4 py-2 rounded-full text-xs ${
+                theme === "dark" 
+                  ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700" 
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+              } transition-colors`}
+            >
+              🎯 Dicas de economia
+            </button>
+            <button
+              onClick={() => setInputValue("Qual meu plano para alcançar meu objetivo?")}
+              className={`px-4 py-2 rounded-full text-xs ${
+                theme === "dark" 
+                  ? "bg-zinc-800 text-zinc-300 hover:bg-zinc-700" 
+                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
+              } transition-colors`}
+            >
+              🚀 Plano de ação
+            </button>
+          </div>
+        )}
         
         {/* Messages */}
         <div className={`flex-1 ${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4 mb-4 overflow-y-auto max-h-[300px] space-y-3`}>
