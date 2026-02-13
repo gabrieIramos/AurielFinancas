@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { Sparkles, Send, TrendingUp, PieChart, Loader2, RefreshCw, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Sparkles, Send, TrendingUp, PieChart, RefreshCw, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import { aiService, FinancialKPIs, ChatMessage, AIInitialInsights } from "../services/ai.service";
+import Loading from "./Loading";
 
 type Message = {
   id: string;
@@ -286,7 +287,9 @@ export default function IAScreen() {
     return (
       <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} flex items-center justify-center`}>
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-4" />
+          <div className="mb-4">
+            <Loading size="lg" color="purple" />
+          </div>
           <p className={theme === "dark" ? "text-zinc-400" : "text-zinc-600"}>Analisando seus dados financeiros...</p>
         </div>
       </div>
@@ -479,7 +482,7 @@ export default function IAScreen() {
           {sending && (
             <div className="flex justify-start">
               <div className={`rounded-2xl px-4 py-3 ${theme === "dark" ? "bg-zinc-800" : "bg-zinc-200"}`}>
-                <Loader2 className="w-5 h-5 animate-spin text-purple-500" />
+                <Loading size="sm" color="purple" inline />
               </div>
             </div>
           )}
@@ -507,7 +510,7 @@ export default function IAScreen() {
             className="p-3 bg-purple-600 rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {sending ? (
-              <Loader2 className="w-5 h-5 text-white animate-spin" />
+              <Loading size="sm" color="white" inline />
             ) : (
               <Send className="w-5 h-5 text-white" />
             )}

@@ -1,9 +1,10 @@
-import { Eye, EyeOff, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, Loader2 } from "lucide-react";
+import { Eye, EyeOff, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from "lucide-react";
 import { useState, useEffect } from "react";
 import { LineChart, Line, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { dashboardService, DashboardData } from "../services/dashboard.service";
+import Loading from "./Loading";
 
 export default function HomeScreen() {
   const [showValues, setShowValues] = useState(true);
@@ -55,7 +56,9 @@ export default function HomeScreen() {
     return (
       <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} flex items-center justify-center`}>
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin text-emerald-500 mx-auto mb-4" />
+          <div className="mb-4">
+            <Loading size="lg" color="emerald" />
+          </div>
           <p className={theme === "dark" ? "text-zinc-400" : "text-zinc-600"}>Carregando seu dashboard...</p>
         </div>
       </div>

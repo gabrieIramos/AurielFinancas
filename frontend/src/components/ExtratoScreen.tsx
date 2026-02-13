@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Search, ArrowUpRight, ArrowDownRight, Upload, Loader2, FileUp, X, CheckCircle, AlertCircle } from "lucide-react";
+import { Search, ArrowUpRight, ArrowDownRight, Upload, FileUp, X, CheckCircle, AlertCircle } from "lucide-react";
 import { useTheme } from "../contexts/ThemeContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "./ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { transactionsService, Transaction, BankParserInfo, SupportedBankCode } from "../services/transactions.service";
 import { categoriesService, Category } from "../services/categories.service";
 import { accountsService, Account } from "../services/accounts.service";
+import Loading from "./Loading";
 
 export default function ExtratoScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -247,7 +248,7 @@ export default function ExtratoScreen() {
   if (loading) {
     return (
       <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} flex items-center justify-center`}>
-        <Loader2 className="w-8 h-8 animate-spin text-emerald-600" />
+        <Loading size="lg" color="emerald" />
       </div>
     );
   }
@@ -443,10 +444,13 @@ export default function ExtratoScreen() {
             <button
               onClick={handleCategoryChange}
               disabled={savingCategory}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50"
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {savingCategory ? (
-                <Loader2 className="w-4 h-4 animate-spin flex items-center justify-center" />
+                <>
+                  <Loading size="sm" color="white" inline />
+                  Salvando...
+                </>
               ) : (
                 "Salvar"
               )}
@@ -590,7 +594,7 @@ export default function ExtratoScreen() {
               >
                 {importing ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loading size="sm" color="white" inline />
                     Importando...
                   </>
                 ) : (

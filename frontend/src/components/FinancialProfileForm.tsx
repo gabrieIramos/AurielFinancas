@@ -1,653 +1,784 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { useState } from 'react';
 import { 
-  ChevronRight, 
-  ChevronLeft, 
   User, 
-  DollarSign, 
-  CreditCard, 
-  PiggyBank, 
+  Wallet,
   TrendingUp, 
   Target,
-  Loader2,
-  Check,
-  Sparkles
-} from "lucide-react";
-import { useTheme } from "../contexts/ThemeContext";
+  CheckCircle2,
+  ArrowRight,
+  Sparkles,
+  Heart,
+  Home,
+  Plane,
+  Car,
+  Coins,
+  CreditCard,
+  GraduationCap,
+  Zap,
+  Shield,
+  TrendingDown,
+  DollarSign,
+  ArrowLeft
+} from 'lucide-react';
 import { userService, FinancialProfile } from "../services/user.service";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface FinancialProfileFormProps {
   onComplete: () => void;
   onSkip?: () => void;
 }
 
-type Step = {
-  id: string;
-  title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-};
-
-const steps: Step[] = [
-  { id: "personal", title: "Sobre você", subtitle: "Informações básicas", icon: <User className="w-5 h-5" /> },
-  { id: "income", title: "Renda", subtitle: "Sua situação financeira", icon: <DollarSign className="w-5 h-5" /> },
-  { id: "expenses", title: "Despesas", subtitle: "Como você gasta", icon: <CreditCard className="w-5 h-5" /> },
-  { id: "emergency", title: "Reserva", subtitle: "Segurança financeira", icon: <PiggyBank className="w-5 h-5" /> },
-  { id: "investments", title: "Investimentos", subtitle: "Sua experiência", icon: <TrendingUp className="w-5 h-5" /> },
-  { id: "goals", title: "Objetivos", subtitle: "Seus sonhos", icon: <Target className="w-5 h-5" /> },
-];
+interface FormData {
+  nome: string;
+  idade: string;
+  rendaEstimada: string;
+  situacaoFinanceira: 'dividas' | 'equilibrio' | 'investindo';
+  tiposDividas: string[];
+  comprometimentoRenda: string;
+  possuiReserva: 'sim' | 'nao';
+  tempoReserva: string;
+  conhecimentoInvestimento: string;
+  investimentosAtuais: string[];
+  objetivoPrincipal: string;
+  prazoObjetivo: string;
+}
 
 export default function FinancialProfileForm({ onComplete, onSkip }: FinancialProfileFormProps) {
   const { theme } = useTheme();
-  const [currentStep, setCurrentStep] = useState(0);
+  const isDark = theme === 'dark';
+  
+  const [step, setStep] = useState(0);
+  const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState<FinancialProfile>({
-    hasDebts: false,
-    hasEmergencyFund: false,
-    debtTypes: [],
-    currentInvestments: [],
-    mainFinancialGoals: [],
+  
+  const [formData, setFormData] = useState<FormData>({
+    nome: '',
+    idade: '',
+    rendaEstimada: '',
+    situacaoFinanceira: 'equilibrio',
+    tiposDividas: [],
+    comprometimentoRenda: '',
+    possuiReserva: 'nao',
+    tempoReserva: '',
+    conhecimentoInvestimento: '',
+    investimentosAtuais: [],
+    objetivoPrincipal: '',
+    prazoObjetivo: ''
   });
 
-  const updateField = (field: keyof FinancialProfile, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const totalSteps = 6;
+
+  // Theme-based colors
+  const colors = {
+    bg: isDark ? 'bg-zinc-950' : 'bg-gray-50',
+    card: isDark ? 'bg-zinc-900' : 'bg-white',
+    cardHover: isDark ? 'hover:bg-zinc-800' : 'hover:bg-gray-50',
+    text: isDark ? 'text-white' : 'text-gray-900',
+    textSecondary: isDark ? 'text-zinc-400' : 'text-gray-600',
+    border: isDark ? 'border-zinc-800' : 'border-gray-200',
+    borderHover: isDark ? 'hover:border-zinc-700' : 'hover:border-gray-300',
+    input: isDark ? 'bg-zinc-950 border-zinc-800' : 'bg-white border-gray-200',
+    inputFocus: isDark ? 'focus:border-emerald-500 focus:bg-zinc-900' : 'focus:border-emerald-500 focus:bg-gray-50',
+    accent: 'bg-emerald-500',
+    accentHover: 'hover:bg-emerald-600',
+    accentText: 'text-emerald-500',
+    selected: isDark ? 'bg-emerald-500 text-zinc-950 border-emerald-500' : 'bg-emerald-500 text-white border-emerald-500',
+    selectedShadow: 'shadow-[0_4px_20px_rgba(16,185,129,0.3)]',
+    progress: isDark ? 'bg-zinc-800' : 'bg-gray-200',
   };
 
-  const toggleArrayField = (field: 'debtTypes' | 'currentInvestments' | 'mainFinancialGoals', value: string) => {
+  const handleCheckboxChange = (value: string, field: 'tiposDividas' | 'investimentosAtuais') => {
     setFormData(prev => {
-      const current = prev[field] || [];
-      const newArray = current.includes(value) 
-        ? current.filter(v => v !== value)
-        : [...current, value];
-      return { ...prev, [field]: newArray };
+      const currentList = [...prev[field]];
+      if (currentList.includes(value)) {
+        return { ...prev, [field]: currentList.filter(item => item !== value) };
+      } else {
+        return { ...prev, [field]: [...currentList, value] };
+      }
     });
   };
 
-  const handleNext = () => {
-    if (currentStep < steps.length - 1) {
-      setCurrentStep(prev => prev + 1);
+  const nextStep = () => {
+    if (step < totalSteps - 1) setStep(step + 1);
+  };
+
+  const prevStep = () => {
+    if (step > 0) setStep(step - 1);
+  };
+
+  const canProceed = () => {
+    switch(step) {
+      case 0: return formData.nome.trim().length > 0 && formData.idade.trim().length > 0;
+      case 1: return formData.rendaEstimada.length > 0;
+      case 2: return formData.situacaoFinanceira.length > 0;
+      case 3: return formData.possuiReserva.length > 0;
+      case 4: return formData.conhecimentoInvestimento.length > 0;
+      case 5: return formData.objetivoPrincipal.length > 0 && formData.prazoObjetivo.length > 0;
+      default: return true;
     }
   };
 
-  const handlePrevious = () => {
-    if (currentStep > 0) {
-      setCurrentStep(prev => prev - 1);
-    }
+  const mapToProfile = (data: FormData): FinancialProfile => {
+    return {
+      ageRange: data.idade,
+      monthlyIncomeRange: data.rendaEstimada,
+      hasDebts: data.situacaoFinanceira === 'dividas',
+      debtTypes: data.tiposDividas,
+      monthlyExpensePercentage: data.comprometimentoRenda,
+      hasEmergencyFund: data.possuiReserva === 'sim',
+      emergencyFundMonths: data.tempoReserva,
+      investmentExperience: data.conhecimentoInvestimento,
+      currentInvestments: data.investimentosAtuais,
+      mainFinancialGoals: [data.objetivoPrincipal],
+      biggestFinancialChallenge: data.situacaoFinanceira,
+      profileCompleted: true
+    };
   };
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      await userService.saveFinancialProfile(formData);
-      onComplete();
+      const profileData = mapToProfile(formData);
+      await userService.saveFinancialProfile(profileData);
+      setIsSubmitted(true);
     } catch (error) {
-      console.error('Erro ao salvar perfil:', error);
+      console.error("Erro ao salvar perfil:", error);
+      setIsSubmitted(true);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const OptionButton = ({ 
-    selected, 
-    onClick, 
-    children 
-  }: { 
-    selected: boolean; 
-    onClick: () => void; 
-    children: React.ReactNode;
-  }) => (
-    <button
-      onClick={onClick}
-      className={`w-full p-4 rounded-xl text-left transition-all ${
-        selected
-          ? "bg-emerald-600 text-white"
-          : theme === "dark"
-          ? "bg-zinc-800 text-white hover:bg-zinc-700"
-          : "bg-zinc-100 text-black hover:bg-zinc-200"
-      }`}
-    >
-      {children}
-    </button>
-  );
-
-  const MultiSelectButton = ({ 
-    selected, 
-    onClick, 
-    children 
-  }: { 
-    selected: boolean; 
-    onClick: () => void; 
-    children: React.ReactNode;
-  }) => (
-    <button
-      onClick={onClick}
-      className={`p-3 rounded-xl text-sm transition-all flex items-center gap-2 ${
-        selected
-          ? "bg-emerald-600 text-white"
-          : theme === "dark"
-          ? "bg-zinc-800 text-white hover:bg-zinc-700"
-          : "bg-zinc-100 text-black hover:bg-zinc-200"
-      }`}
-    >
-      {selected && <Check className="w-4 h-4" />}
-      {children}
-    </button>
-  );
-
-  const renderStepContent = () => {
-    switch (steps[currentStep].id) {
-      case "personal":
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Qual sua faixa etária?
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { value: "18-24", label: "18 a 24 anos" },
-                  { value: "25-34", label: "25 a 34 anos" },
-                  { value: "35-44", label: "35 a 44 anos" },
-                  { value: "45-54", label: "45 a 54 anos" },
-                  { value: "55-64", label: "55 a 64 anos" },
-                  { value: "65+", label: "65+ anos" },
-                ].map(option => (
-                  <OptionButton
-                    key={option.value}
-                    selected={formData.ageRange === option.value}
-                    onClick={() => updateField("ageRange", option.value)}
-                  >
-                    {option.label}
-                  </OptionButton>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Qual sua ocupação principal?
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { value: "employed", label: "Empregado CLT" },
-                  { value: "self-employed", label: "Autônomo" },
-                  { value: "entrepreneur", label: "Empresário" },
-                  { value: "student", label: "Estudante" },
-                  { value: "retired", label: "Aposentado" },
-                  { value: "other", label: "Outro" },
-                ].map(option => (
-                  <OptionButton
-                    key={option.value}
-                    selected={formData.occupation === option.value}
-                    onClick={() => updateField("occupation", option.value)}
-                  >
-                    {option.label}
-                  </OptionButton>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case "income":
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Qual sua renda mensal aproximada?
-              </label>
-              <div className="space-y-3">
-                {[
-                  { value: "up-to-2k", label: "Até R$ 2.000" },
-                  { value: "2k-5k", label: "R$ 2.000 a R$ 5.000" },
-                  { value: "5k-10k", label: "R$ 5.000 a R$ 10.000" },
-                  { value: "10k-20k", label: "R$ 10.000 a R$ 20.000" },
-                  { value: "20k-50k", label: "R$ 20.000 a R$ 50.000" },
-                  { value: "50k+", label: "Acima de R$ 50.000" },
-                ].map(option => (
-                  <OptionButton
-                    key={option.value}
-                    selected={formData.monthlyIncomeRange === option.value}
-                    onClick={() => updateField("monthlyIncomeRange", option.value)}
-                  >
-                    {option.label}
-                  </OptionButton>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Como é a estabilidade da sua renda?
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { value: "stable", label: "Estável" },
-                  { value: "mostly-stable", label: "Maior parte estável" },
-                  { value: "mostly-variable", label: "Maior parte variável" },
-                  { value: "variable", label: "Totalmente variável" },
-                ].map(option => (
-                  <OptionButton
-                    key={option.value}
-                    selected={formData.incomeStability === option.value}
-                    onClick={() => updateField("incomeStability", option.value)}
-                  >
-                    {option.label}
-                  </OptionButton>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case "expenses":
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Quanto da sua renda você gasta por mês?
-              </label>
-              <div className="space-y-3">
-                {[
-                  { value: "less-30", label: "Menos de 30% - Sobra bastante" },
-                  { value: "30-50", label: "30% a 50% - Sobra razoável" },
-                  { value: "50-70", label: "50% a 70% - Sobra um pouco" },
-                  { value: "70-90", label: "70% a 90% - Sobra quase nada" },
-                  { value: "more-90", label: "Mais de 90% - Não sobra nada" },
-                ].map(option => (
-                  <OptionButton
-                    key={option.value}
-                    selected={formData.monthlyExpensePercentage === option.value}
-                    onClick={() => updateField("monthlyExpensePercentage", option.value)}
-                  >
-                    {option.label}
-                  </OptionButton>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Você possui dívidas atualmente?
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <OptionButton
-                  selected={formData.hasDebts === true}
-                  onClick={() => updateField("hasDebts", true)}
-                >
-                  Sim
-                </OptionButton>
-                <OptionButton
-                  selected={formData.hasDebts === false}
-                  onClick={() => updateField("hasDebts", false)}
-                >
-                  Não
-                </OptionButton>
-              </div>
-            </div>
-
-            {formData.hasDebts && (
-              <div>
-                <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                  Quais tipos de dívidas? (selecione todas)
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    { value: "credit-card", label: "Cartão de crédito" },
-                    { value: "personal-loan", label: "Empréstimo pessoal" },
-                    { value: "financing", label: "Financiamento" },
-                    { value: "mortgage", label: "Financ. imobiliário" },
-                    { value: "student-loan", label: "Estudantil" },
-                    { value: "other", label: "Outros" },
-                  ].map(option => (
-                    <MultiSelectButton
-                      key={option.value}
-                      selected={formData.debtTypes?.includes(option.value) || false}
-                      onClick={() => toggleArrayField("debtTypes", option.value)}
-                    >
-                      {option.label}
-                    </MultiSelectButton>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        );
-
-      case "emergency":
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Você tem uma reserva de emergência?
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <OptionButton
-                  selected={formData.hasEmergencyFund === true}
-                  onClick={() => updateField("hasEmergencyFund", true)}
-                >
-                  Sim
-                </OptionButton>
-                <OptionButton
-                  selected={formData.hasEmergencyFund === false}
-                  onClick={() => updateField("hasEmergencyFund", false)}
-                >
-                  Não
-                </OptionButton>
-              </div>
-            </div>
-
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Quanto tempo sua reserva cobriria suas despesas?
-              </label>
-              <div className="space-y-3">
-                {[
-                  { value: "none", label: "Não tenho reserva" },
-                  { value: "less-3", label: "Menos de 3 meses" },
-                  { value: "3-6", label: "3 a 6 meses" },
-                  { value: "6-12", label: "6 a 12 meses" },
-                  { value: "more-12", label: "Mais de 12 meses" },
-                ].map(option => (
-                  <OptionButton
-                    key={option.value}
-                    selected={formData.emergencyFundMonths === option.value}
-                    onClick={() => updateField("emergencyFundMonths", option.value)}
-                  >
-                    {option.label}
-                  </OptionButton>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case "investments":
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Qual sua experiência com investimentos?
-              </label>
-              <div className="space-y-3">
-                {[
-                  { value: "none", label: "Nenhuma - Nunca investi" },
-                  { value: "beginner", label: "Iniciante - Poupança/CDB básico" },
-                  { value: "intermediate", label: "Intermediário - Diversificado" },
-                  { value: "advanced", label: "Avançado - Estratégias complexas" },
-                ].map(option => (
-                  <OptionButton
-                    key={option.value}
-                    selected={formData.investmentExperience === option.value}
-                    onClick={() => updateField("investmentExperience", option.value)}
-                  >
-                    {option.label}
-                  </OptionButton>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Onde você investe atualmente? (selecione todos)
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { value: "savings", label: "Poupança" },
-                  { value: "cdb", label: "CDB/RDB" },
-                  { value: "tesouro", label: "Tesouro Direto" },
-                  { value: "stocks", label: "Ações" },
-                  { value: "fiis", label: "FIIs" },
-                  { value: "crypto", label: "Cripto" },
-                  { value: "funds", label: "Fundos" },
-                  { value: "other", label: "Outros" },
-                ].map(option => (
-                  <MultiSelectButton
-                    key={option.value}
-                    selected={formData.currentInvestments?.includes(option.value) || false}
-                    onClick={() => toggleArrayField("currentInvestments", option.value)}
-                  >
-                    {option.label}
-                  </MultiSelectButton>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Qual seu perfil de risco?
-              </label>
-              <div className="space-y-3">
-                {[
-                  { value: "conservative", label: "Conservador - Prefiro segurança" },
-                  { value: "moderate", label: "Moderado - Equilíbrio risco/retorno" },
-                  { value: "aggressive", label: "Arrojado - Busco maiores ganhos" },
-                ].map(option => (
-                  <OptionButton
-                    key={option.value}
-                    selected={formData.riskTolerance === option.value}
-                    onClick={() => updateField("riskTolerance", option.value)}
-                  >
-                    {option.label}
-                  </OptionButton>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      case "goals":
-        return (
-          <div className="space-y-6">
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Quais são seus objetivos financeiros? (selecione todos)
-              </label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { value: "save-more", label: "💰 Economizar mais" },
-                  { value: "invest-better", label: "📈 Investir melhor" },
-                  { value: "pay-debts", label: "💳 Quitar dívidas" },
-                  { value: "build-emergency", label: "🛡️ Reserva de emergência" },
-                  { value: "increase-income", label: "💵 Aumentar renda" },
-                  { value: "retire-early", label: "🏖️ Aposentar cedo" },
-                  { value: "buy-house", label: "🏠 Comprar imóvel" },
-                  { value: "travel", label: "✈️ Viajar" },
-                ].map(option => (
-                  <MultiSelectButton
-                    key={option.value}
-                    selected={formData.mainFinancialGoals?.includes(option.value) || false}
-                    onClick={() => toggleArrayField("mainFinancialGoals", option.value)}
-                  >
-                    {option.label}
-                  </MultiSelectButton>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Qual seu horizonte de investimento?
-              </label>
-              <div className="space-y-3">
-                {[
-                  { value: "short-term", label: "Curto prazo (até 2 anos)" },
-                  { value: "medium-term", label: "Médio prazo (2 a 5 anos)" },
-                  { value: "long-term", label: "Longo prazo (mais de 5 anos)" },
-                ].map(option => (
-                  <OptionButton
-                    key={option.value}
-                    selected={formData.investmentHorizon === option.value}
-                    onClick={() => updateField("investmentHorizon", option.value)}
-                  >
-                    {option.label}
-                  </OptionButton>
-                ))}
-              </div>
-            </div>
-
-            <div>
-              <label className={`block text-sm mb-3 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                Qual seu maior desafio financeiro hoje?
-              </label>
-              <div className="space-y-3">
-                {[
-                  { value: "control-spending", label: "Controlar meus gastos" },
-                  { value: "save-money", label: "Conseguir economizar" },
-                  { value: "understand-investments", label: "Entender investimentos" },
-                  { value: "increase-income", label: "Aumentar minha renda" },
-                  { value: "pay-debts", label: "Pagar minhas dívidas" },
-                  { value: "organize-finances", label: "Organizar minhas finanças" },
-                ].map(option => (
-                  <OptionButton
-                    key={option.value}
-                    selected={formData.biggestFinancialChallenge === option.value}
-                    onClick={() => updateField("biggestFinancialChallenge", option.value)}
-                  >
-                    {option.label}
-                  </OptionButton>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  const isLastStep = currentStep === steps.length - 1;
-  const progress = ((currentStep + 1) / steps.length) * 100;
-
-  return (
-    <div className={`min-h-screen ${theme === "dark" ? "bg-black text-white" : "bg-white text-black"} flex flex-col`}>
-      {/* Header */}
-      <div className="px-4 pt-6 pb-4">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-emerald-400" />
-            <span className="text-lg font-semibold">Perfil Financeiro</span>
-          </div>
-          {onSkip && (
-            <button
-              onClick={onSkip}
-              className={`text-sm ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}
-            >
-              Pular
-            </button>
-          )}
-        </div>
-
-        {/* Progress Bar */}
-        <div className={`h-2 rounded-full ${theme === "dark" ? "bg-zinc-800" : "bg-zinc-200"}`}>
-          <motion.div
-            className="h-full bg-emerald-500 rounded-full"
-            initial={{ width: 0 }}
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.3 }}
+  const renderProgressBar = () => {
+    const progress = ((step + 1) / totalSteps) * 100;
+    return (
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <div className={`h-1 ${colors.progress}`}>
+          <div 
+            className="h-full bg-emerald-500 transition-all duration-300 ease-out" 
+            style={{ width: `${progress}%` }}
           />
         </div>
+      </div>
+    );
+  };
 
-        {/* Step Indicator */}
-        <div className="flex items-center justify-between mt-4 overflow-x-auto pb-2">
-          {steps.map((step, index) => (
-            <div
-              key={step.id}
-              className={`flex flex-col items-center min-w-[60px] ${
-                index <= currentStep
-                  ? "text-emerald-400"
-                  : theme === "dark"
-                  ? "text-zinc-600"
-                  : "text-zinc-400"
-              }`}
-            >
-              <div
-                className={`w-10 h-10 rounded-full flex items-center justify-center mb-1 ${
-                  index < currentStep
-                    ? "bg-emerald-600"
-                    : index === currentStep
-                    ? theme === "dark"
-                      ? "bg-emerald-600/20 border-2 border-emerald-500"
-                      : "bg-emerald-100 border-2 border-emerald-500"
-                    : theme === "dark"
-                    ? "bg-zinc-800"
-                    : "bg-zinc-200"
-                }`}
-              >
-                {index < currentStep ? (
-                  <Check className="w-5 h-5 text-white" />
-                ) : (
-                  step.icon
-                )}
-              </div>
-              <span className="text-xs text-center">{step.title}</span>
+  // Estilos base para sobrescrever o CSS
+  const baseButtonStyle: React.CSSProperties = {
+    fontSize: '1rem',
+    fontWeight: '700',
+    lineHeight: '1.5',
+    padding: '1.25rem 1.5rem',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  };
+
+  const baseInputStyle: React.CSSProperties = {
+    fontSize: '1.125rem',
+    fontWeight: '400',
+    lineHeight: '1.5',
+    padding: '1rem 1.25rem',
+  };
+
+  const baseLabelStyle: React.CSSProperties = {
+    fontSize: '0.75rem',
+    fontWeight: '700',
+    lineHeight: '1.2',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+  };
+
+  const baseTitleStyle: React.CSSProperties = {
+    fontSize: '1.875rem',
+    fontWeight: '900',
+    lineHeight: '1.2',
+  };
+
+  const baseSubtitleStyle: React.CSSProperties = {
+    fontSize: '1rem',
+    fontWeight: '400',
+    lineHeight: '2.6',
+  };
+
+  if (isSubmitted) {
+    const firstName = formData.nome.split(' ')[0];
+    return (
+      <div className={`min-h-screen ${colors.bg} flex items-center justify-center p-6`}>
+        <div className={`${colors.card} rounded-3xl p-8 max-w-md w-full text-center shadow-2xl`}>
+          <div className="mb-6 flex justify-center">
+            <div className="bg-emerald-500/10 p-6 rounded-full">
+              <CheckCircle2 className="w-16 h-16 text-emerald-500" />
             </div>
-          ))}
+          </div>
+          
+          <h2 className={colors.text} style={baseTitleStyle}>
+            Pronto, {firstName}! 🎉
+          </h2>
+          
+          <p className={`${colors.textSecondary} mt-3 mb-8`} style={{ ...baseSubtitleStyle, fontSize: '1.125rem' }}>
+            Seu perfil foi salvo com sucesso. Agora vamos criar seu plano financeiro personalizado.
+          </p>
+          
+          <button 
+            onClick={onComplete}
+            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl transition-all shadow-lg active:scale-95"
+            style={{ ...baseButtonStyle, gap: '0.5rem' }}
+          >
+            Começar Jornada
+            <Sparkles size={22} />
+          </button>
         </div>
       </div>
+    );
+  }
 
-      {/* Content */}
-      <div className="flex-1 px-4 overflow-y-auto pb-32">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentStep}
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -20 }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold mb-1">{steps[currentStep].title}</h2>
-              <p className={`${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
-                {steps[currentStep].subtitle}
-              </p>
+  return (
+    <div className={`min-h-screen ${colors.bg} flex flex-col`}>
+      {renderProgressBar()}
+      
+      <div className="flex-1 flex flex-col pt-8 px-8 pb-10">
+        {/* Header */}
+        <div className="mb-8 px-6"> <br />
+          <div className="flex justify-between items-center mb-6">
+            {step > 0 ? (
+              <button 
+                onClick={prevStep}
+                className={`${colors.textSecondary} transition-colors`}
+                style={{ fontSize: '0.875rem', fontWeight: '600' }}
+              >
+                <ArrowLeft className="inline w-6 h-6 mr-1" />
+              </button>
+            ) : (
+              <div></div>
+            )}
+            
+            {onSkip && (
+              <button 
+                onClick={onSkip}
+                className={`${colors.textSecondary} transition-colors`}
+                style={{ fontSize: '0.875rem', fontWeight: '600' }}
+              >
+                Pular
+              </button>
+            )}
+          </div>
+          
+          <div>
+            <div className={`${colors.accentText} mb-2`} style={baseLabelStyle}>
+              Etapa {step + 1} de {totalSteps}
             </div>
-            {renderStepContent()}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+          </div>
+        </div>
 
-      {/* Navigation */}
-      <div className={`fixed bottom-0 left-0 right-0 p-4 ${theme === "dark" ? "bg-zinc-900/95" : "bg-white/95"} backdrop-blur-sm border-t ${theme === "dark" ? "border-zinc-800" : "border-zinc-200"}`}>
-        <div className="flex gap-3">
-          {currentStep > 0 && (
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto -mx-6 px-6">
+          {/* Step 0: Nome e Idade */}
+          {step === 0 && (
+            <div className="space-y-8">
+              <div>
+                <h2 className={`${colors.text} mb-3`} style={baseTitleStyle}>
+                  Vamos nos conhecer! 👋
+                </h2>
+                <p className={colors.textSecondary} style={baseSubtitleStyle}>
+                  Como você gostaria de ser chamado?
+                </p>
+              </div>
+
+              <div className="space-y-5">
+                <div>
+                  <label className={`block ${colors.textSecondary} mb-3`} style={baseLabelStyle}>
+                    Seu nome
+                  </label>
+                  <input 
+                    type="text"
+                    value={formData.nome}
+                    onChange={(e) => setFormData(prev => ({ ...prev, nome: e.target.value }))}
+                    placeholder="Digite aqui..."
+                    className={`w-full rounded-2xl border-2 ${colors.input} ${colors.inputFocus} ${colors.text} outline-none transition-all`}
+                    style={baseInputStyle}
+                    autoFocus
+                  />
+                </div>
+
+                <div>
+                  <label className={`block ${colors.textSecondary} mb-3`} style={baseLabelStyle}>
+                    Sua idade
+                  </label>
+                  <input 
+                    type="number"
+                    value={formData.idade}
+                    onChange={(e) => setFormData(prev => ({ ...prev, idade: e.target.value }))}
+                    placeholder="00"
+                    className={`w-full rounded-2xl border-2 ${colors.input} ${colors.inputFocus} ${colors.text} outline-none transition-all`}
+                    style={baseInputStyle}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 1: Renda */}
+          {step === 1 && (
+            <div className="space-y-8">
+              <div>
+                <h2 className={`${colors.text} mb-3`} style={baseTitleStyle}>
+                  Qual sua renda mensal? 💰
+                </h2>
+                <p className={colors.textSecondary} style={baseSubtitleStyle}>
+                  Uma estimativa ajuda a criar seu plano ideal
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { value: "Até R$ 2.000", emoji: "🌱" },
+                  { value: "R$ 2.000 - R$ 5.000", emoji: "🌿" },
+                  { value: "R$ 5.000 - R$ 10.000", emoji: "🌳" },
+                  { value: "R$ 10.000 - R$ 20.000", emoji: "🏆" },
+                  { value: "Acima de R$ 20.000", emoji: "💎" }
+                ].map(item => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, rendaEstimada: item.value }))}
+                    className={`w-full rounded-2xl border-2 transition-all text-left ${
+                      formData.rendaEstimada === item.value 
+                        ? `${colors.selected} ${colors.selectedShadow} scale-[1.02]` 
+                        : `${colors.card} ${colors.border} ${colors.cardHover} ${colors.text}`
+                    }`}
+                    style={{ ...baseButtonStyle, gap: '1rem', justifyContent: 'flex-start' }}
+                  >
+                    <span style={{ fontSize: '1.5rem' }}>{item.emoji}</span>
+                    <span>{item.value}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Situação Financeira */}
+          {step === 2 && (
+            <div className="space-y-8">
+              <div>
+                <h2 className={`${colors.text} mb-3`} style={baseTitleStyle}>
+                  Como está sua vida financeira hoje? 🎯
+                </h2>
+                <p className={colors.textSecondary} style={baseSubtitleStyle}>
+                  Seja sincero, sem julgamentos aqui
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { 
+                    value: 'dividas', 
+                    label: 'Tenho dívidas para pagar',
+                    icon: TrendingDown,
+                    color: 'text-red-500',
+                    bgColor: isDark ? 'bg-red-500/10' : 'bg-red-50'
+                  },
+                  { 
+                    value: 'equilibrio', 
+                    label: 'Estou no equilíbrio',
+                    icon: Wallet,
+                    color: 'text-blue-500',
+                    bgColor: isDark ? 'bg-blue-500/10' : 'bg-blue-50'
+                  },
+                  { 
+                    value: 'investindo', 
+                    label: 'Já estou investindo',
+                    icon: TrendingUp,
+                    color: 'text-emerald-500',
+                    bgColor: isDark ? 'bg-emerald-500/10' : 'bg-emerald-50'
+                  }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isSelected = formData.situacaoFinanceira === item.value;
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, situacaoFinanceira: item.value as any }))}
+                      className={`w-full rounded-2xl border-2 transition-all text-left ${
+                        isSelected
+                          ? `bg-emerald-500 text-white border-emerald-500 ${colors.selectedShadow} scale-[1.02]` 
+                          : `${colors.card} ${colors.border} ${colors.cardHover}`
+                      }`}
+                      style={{ ...baseButtonStyle, padding: '1.5rem', justifyContent: 'flex-start' }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-xl ${isSelected ? 'bg-white/20' : item.bgColor}`}>
+                          <Icon className={`w-6 h-6 ${isSelected ? 'text-white' : item.color}`} />
+                        </div>
+                        <span style={{ fontSize: '1rem', fontWeight: '700' }}>
+                          {item.label}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Se tem dívidas, perguntar tipos */}
+              {formData.situacaoFinanceira === 'dividas' && (
+                <div className="space-y-5 pt-4">
+                  <label className={`block ${colors.text}`} style={{ fontSize: '0.875rem', fontWeight: '700' }}>
+                    Que tipo de dívidas?
+                  </label>
+                  <div className="grid grid-cols-2 gap-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                    {[
+                      { value: 'Cartão', icon: CreditCard },
+                      { value: 'Empréstimo', icon: DollarSign },
+                      { value: 'Financiamento', icon: Car },
+                      { value: 'Imóvel', icon: Home },
+                      { value: 'Estudantil', icon: GraduationCap },
+                      { value: 'Outro', icon: Coins }
+                    ].map(item => {
+                      const Icon = item.icon;
+                      const isSelected = formData.tiposDividas.includes(item.value);
+                      return (
+                        <button
+                          key={item.value}
+                          type="button"
+                          onClick={() => handleCheckboxChange(item.value, 'tiposDividas')}
+                          className={`rounded-xl border-2 transition-all relative ${
+                            isSelected
+                              ? `border-emerald-500 bg-emerald-500 text-white` 
+                              : `${colors.card} ${colors.border} ${colors.text}`
+                          }`}
+                          style={{ padding: '1rem', fontSize: '0.75rem', fontWeight: '700', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '90px' }}
+                        >
+                          {/* Checkbox visual */}
+                          <div 
+                            className={`absolute top-2 right-2 w-5 h-5 rounded border-2 flex items-center justify-center ${
+                              isSelected 
+                                ? 'bg-white border-white' 
+                                : isDark ? 'border-zinc-600 bg-zinc-800' : 'border-gray-300 bg-white'
+                            }`}
+                            style={{ width: '20px', height: '20px' }}
+                          >
+                            {isSelected && (
+                              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                                <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </div>
+                          
+                          <Icon className={`w-5 h-5 mb-2 ${isSelected ? 'text-white' : colors.textSecondary}`} />
+                          {item.value}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div>
+                    <label className={`block ${colors.text} mb-3`} style={{ fontSize: '0.875rem', fontWeight: '700' }}>
+                      Quanto % da renda vai para dívidas?
+                    </label>
+                    <select 
+                      value={formData.comprometimentoRenda}
+                      onChange={(e) => setFormData(prev => ({ ...prev, comprometimentoRenda: e.target.value }))}
+                      className={`w-full rounded-2xl border-2 ${colors.input} ${colors.inputFocus} ${colors.text} outline-none`}
+                      style={{ 
+                        padding: '1rem 1.25rem', 
+                        fontSize: '1rem', 
+                        fontWeight: '600',
+                        backgroundColor: isDark ? '#09090b' : '#ffffff',
+                        color: isDark ? '#ffffff' : '#000000'
+                      }}
+                    >
+                      <option value="" style={{ backgroundColor: isDark ? '#18181b' : '#ffffff', color: isDark ? '#ffffff' : '#000000' }}>Selecione...</option>
+                      <option value="Menos de 10%" style={{ backgroundColor: isDark ? '#18181b' : '#ffffff', color: isDark ? '#ffffff' : '#000000' }}>Menos de 10%</option>
+                      <option value="10% a 30%" style={{ backgroundColor: isDark ? '#18181b' : '#ffffff', color: isDark ? '#ffffff' : '#000000' }}>10% a 30%</option>
+                      <option value="30% a 50%" style={{ backgroundColor: isDark ? '#18181b' : '#ffffff', color: isDark ? '#ffffff' : '#000000' }}>30% a 50%</option>
+                      <option value="Mais de 50%" style={{ backgroundColor: isDark ? '#18181b' : '#ffffff', color: isDark ? '#ffffff' : '#000000' }}>Mais de 50%</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 3: Reserva de Emergência */}
+          {step === 3 && (
+            <div className="space-y-8">
+              <div>
+                <h2 className={`${colors.text} mb-3`} style={baseTitleStyle}>
+                  Tem um dinheiro guardado? 🛡️
+                </h2>
+                <p className={colors.textSecondary} style={baseSubtitleStyle}>
+                  Uma reserva é essencial para emergências
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { value: 'sim', label: 'Sim, tenho!', emoji: '✅' },
+                  { value: 'nao', label: 'Ainda não', emoji: '⏳' }
+                ].map(item => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, possuiReserva: item.value as 'sim' | 'nao' }))}
+                    className={`w-full rounded-2xl border-2 transition-all text-left ${
+                      formData.possuiReserva === item.value 
+                        ? `bg-emerald-500 text-white border-emerald-500 ${colors.selectedShadow} scale-[1.02]` 
+                        : `${colors.card} ${colors.border} ${colors.cardHover} ${colors.text}`
+                    }`}
+                    style={{ ...baseButtonStyle, gap: '1rem', justifyContent: 'flex-start' }}
+                  >
+                    <span style={{ fontSize: '1.5rem' }}>{item.emoji}</span>
+                    <span>{item.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {formData.possuiReserva === 'sim' && (
+                <div className="space-y-4 pt-4">
+                  <label className={`block ${colors.text}`} style={{ fontSize: '0.875rem', fontWeight: '700' }}>
+                    Quanto tempo ela cobre seus gastos?
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      "1-3 meses",
+                      "3-6 meses",
+                      "6-12 meses",
+                      "+12 meses"
+                    ].map(tempo => (
+                      <button
+                        key={tempo}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, tempoReserva: tempo }))}
+                        className={`rounded-xl border-2 transition-all ${
+                          formData.tempoReserva === tempo 
+                            ? `border-emerald-500 bg-emerald-500 text-white` 
+                            : `${colors.card} ${colors.border} ${colors.text}`
+                        }`}
+                        style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: '700' }}
+                      >
+                        {tempo}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 4: Conhecimento */}
+          {step === 4 && (
+            <div className="space-y-8">
+              <div>
+                <h2 className={`${colors.text} mb-3`} style={baseTitleStyle}>
+                  Qual seu nível com investimentos? 📚
+                </h2>
+                <p className={colors.textSecondary} style={baseSubtitleStyle}>
+                  Sem vergonha! Todo mundo começa do zero
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { value: 'Iniciante', label: 'Nunca investi', emoji: '🌱', desc: 'Estou começando agora' },
+                  { value: 'Básico', label: 'Já dei os primeiros passos', emoji: '🌿', desc: 'Sei o básico' },
+                  { value: 'Intermediário', label: 'Já invisto há um tempo', emoji: '🌳', desc: 'Conheço o mercado' },
+                  { value: 'Avançado', label: 'Sou experiente', emoji: '🏆', desc: 'Domino estratégias' }
+                ].map(item => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, conhecimentoInvestimento: item.value }))}
+                    className={`w-full rounded-2xl border-2 transition-all text-left ${
+                      formData.conhecimentoInvestimento === item.value 
+                        ? `bg-emerald-500 text-white border-emerald-500 ${colors.selectedShadow} scale-[1.02]` 
+                        : `${colors.card} ${colors.border} ${colors.cardHover}`
+                    }`}
+                    style={{ padding: '1.25rem 1.5rem' }}
+                  >
+                    <div className="flex items-start gap-4">
+                      <span style={{ fontSize: '1.5rem', marginTop: '0.25rem', flexShrink: 0 }}>{item.emoji}</span>
+                      <div className="flex-1 text-left">
+                        <div className={`mb-1`} style={{ fontSize: '1rem', fontWeight: '700', textAlign: 'left' }}>
+                          {item.label}
+                        </div>
+                        <div className={formData.conhecimentoInvestimento === item.value ? 'text-white/70' : colors.textSecondary} style={{ fontSize: '0.75rem', textAlign: 'left' }}>
+                          {item.desc}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {formData.conhecimentoInvestimento && formData.conhecimentoInvestimento !== 'Iniciante' && (
+                <div className="space-y-4 pt-4">
+                  <label className={`block ${colors.text}`} style={{ fontSize: '0.875rem', fontWeight: '700' }}>
+                    Onde você já investe? (pode marcar mais de uma)
+                  </label>
+                  <div className="grid grid-cols-2 gap-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)' }}>
+                    {[
+                      'Poupança',
+                      'Tesouro',
+                      'CDB',
+                      'Ações',
+                      'FIIs',
+                      'Cripto'
+                    ].map(inv => {
+                      const isSelected = formData.investimentosAtuais.includes(inv);
+                      return (
+                        <button
+                          key={inv}
+                          type="button"
+                          onClick={() => handleCheckboxChange(inv, 'investimentosAtuais')}
+                          className={`rounded-xl border-2 transition-all relative ${
+                            isSelected
+                              ? `border-emerald-500 bg-emerald-500 text-white` 
+                              : `${colors.card} ${colors.border} ${colors.text}`
+                          }`}
+                          style={{ padding: '1rem 0.875rem', fontSize: '0.875rem', fontWeight: '700', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '60px', position: 'relative' }}
+                        >
+                          {/* Checkbox visual */}
+                          <div 
+                            className={`absolute top-2 right-2 w-5 h-5 rounded border-2 flex items-center justify-center ${
+                              isSelected 
+                                ? 'bg-white border-white' 
+                                : isDark ? 'border-zinc-600 bg-zinc-800' : 'border-gray-300 bg-white'
+                            }`}
+                            style={{ width: '18px', height: '18px' }}
+                          >
+                            {isSelected && (
+                              <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
+                                <path d="M11.6666 3.5L5.24992 9.91667L2.33325 7" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              </svg>
+                            )}
+                          </div>
+                          
+                          {inv}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 5: Objetivos */}
+          {step === 5 && (
+            <div className="space-y-8">
+              <div>
+                <h2 className={`${colors.text} mb-3`} style={baseTitleStyle}>
+                  Qual seu maior sonho? ✨
+                </h2>
+                <p className={colors.textSecondary} style={baseSubtitleStyle}>
+                  Vamos construir o caminho até ele
+                </p>
+              </div>
+
+              <div className="space-y-4">
+                {[
+                  { value: 'Aposentadoria', label: 'Aposentadoria tranquila', icon: Heart, color: 'text-pink-500' },
+                  { value: 'Casa própria', label: 'Comprar minha casa', icon: Home, color: 'text-blue-500' },
+                  { value: 'Viajar', label: 'Viajar pelo mundo', icon: Plane, color: 'text-purple-500' },
+                  { value: 'Carro', label: 'Trocar de carro', icon: Car, color: 'text-orange-500' },
+                  { value: 'Liberdade financeira', label: 'Liberdade financeira', icon: Zap, color: 'text-yellow-500' },
+                  { value: 'Reserva', label: 'Criar uma reserva', icon: Shield, color: 'text-emerald-500' }
+                ].map(item => {
+                  const Icon = item.icon;
+                  const isSelected = formData.objetivoPrincipal === item.value;
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, objetivoPrincipal: item.value }))}
+                      className={`w-full rounded-2xl border-2 transition-all text-left ${
+                        isSelected
+                          ? `bg-emerald-500 text-white border-emerald-500 ${colors.selectedShadow} scale-[1.02]` 
+                          : `${colors.card} ${colors.border} ${colors.cardHover}`
+                      }`}
+                      style={{ ...baseButtonStyle, padding: '1.25rem 1.5rem', justifyContent: 'flex-start' }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`p-3 rounded-xl ${isSelected ? 'bg-white/20' : isDark ? 'bg-zinc-800' : 'bg-gray-100'}`}>
+                          <Icon className={`w-6 h-6 ${isSelected ? 'text-white' : item.color}`} />
+                        </div>
+                        <span style={{ fontSize: '1rem', fontWeight: '700' }}>
+                          {item.label}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {formData.objetivoPrincipal && (
+                <div className="space-y-4 pt-4">
+                  <label className={`block ${colors.text}`} style={{ fontSize: '0.875rem', fontWeight: '700' }}>
+                    Em quanto tempo você quer alcançar?
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      "Até 1 ano",
+                      "1-3 anos",
+                      "3-5 anos",
+                      "5+ anos"
+                    ].map(prazo => (
+                      <button
+                        key={prazo}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, prazoObjetivo: prazo }))}
+                        className={`rounded-xl border-2 transition-all ${
+                          formData.prazoObjetivo === prazo 
+                            ? `border-emerald-500 bg-emerald-500 text-white` 
+                            : `${colors.card} ${colors.border} ${colors.text}`
+                        }`}
+                        style={{ padding: '1rem', fontSize: '0.875rem', fontWeight: '700' }}
+                      >
+                        {prazo}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer Button */}
+        <div className="mt-8 pt-5 px-6">
+          {step < totalSteps - 1 ? (
             <button
-              onClick={handlePrevious}
-              className={`flex-1 py-4 rounded-xl flex items-center justify-center gap-2 ${
-                theme === "dark"
-                  ? "bg-zinc-800 text-white"
-                  : "bg-zinc-100 text-black"
+              type="button"
+              onClick={nextStep}
+              disabled={!canProceed()}
+              className={`w-full rounded-2xl transition-all ${
+                canProceed() 
+                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white active:scale-95 shadow-lg shadow-emerald-500/30' 
+                  : `${colors.card} ${colors.border} ${colors.textSecondary} cursor-not-allowed opacity-40`
               }`}
+              style={{ ...baseButtonStyle, gap: '0.5rem' }}
             >
-              <ChevronLeft className="w-5 h-5" />
-              Voltar
+              Continuar
+              <ArrowRight size={20} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={!canProceed() || isSubmitting}
+              className={`w-full rounded-2xl transition-all ${
+                canProceed() && !isSubmitting
+                  ? 'bg-emerald-500 hover:bg-emerald-600 text-white active:scale-95 shadow-lg shadow-emerald-500/30' 
+                  : `${colors.card} ${colors.border} ${colors.textSecondary} cursor-not-allowed opacity-40`
+              }`}
+              style={{ ...baseButtonStyle, gap: '0.5rem' }}
+            >
+              {isSubmitting ? 'Salvando...' : 'Finalizar'}
+              <Sparkles size={20} />
             </button>
           )}
-          <button
-            onClick={isLastStep ? handleSubmit : handleNext}
-            disabled={isSubmitting}
-            className={`flex-1 py-4 rounded-xl flex items-center justify-center gap-2 bg-emerald-600 text-white ${
-              currentStep === 0 ? "w-full" : ""
-            }`}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                Salvando...
-              </>
-            ) : isLastStep ? (
-              <>
-                Concluir
-                <Check className="w-5 h-5" />
-              </>
-            ) : (
-              <>
-                Próximo
-                <ChevronRight className="w-5 h-5" />
-              </>
-            )}
-          </button>
+          <br />
         </div>
       </div>
     </div>

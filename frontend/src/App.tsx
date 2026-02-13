@@ -14,6 +14,7 @@ import FinancialProfileForm from "./components/FinancialProfileForm";
 import AuthCallbackScreen from "./components/AuthCallbackScreen";
 import { PWAUpdatePrompt } from "./components/PWAUpdatePrompt";
 import { Toaster } from "./components/ui/sonner";
+import Loading from "./components/Loading";
 
 type Tab = "home" | "extrato" | "carteira" | "ia" | "perfil";
 type AuthView = "onboarding" | "login" | "signup";
@@ -22,7 +23,7 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<Tab>("home");
   const [authView, setAuthView] = useState<AuthView>("login");
   const { theme } = useTheme();
-  const { isAuthenticated, hasSeenOnboarding, hasFinancialProfile, completeOnboarding, completeFinancialProfile } = useAuth();
+  const { isAuthenticated, hasSeenOnboarding, hasFinancialProfile, isCheckingProfile, completeOnboarding, completeFinancialProfile } = useAuth();
 
   // Verifica se está na rota de callback do OAuth
   const isAuthCallback = window.location.pathname === "/auth-callback";
@@ -105,6 +106,10 @@ function AppContent() {
   }
 
   // Show financial profile form if user hasn't completed it yet
+  if (isCheckingProfile) {
+    return <Loading />;
+  }
+
   if (!hasFinancialProfile) {
     return (
       <FinancialProfileForm

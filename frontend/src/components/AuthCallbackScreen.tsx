@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useTheme } from "../contexts/ThemeContext";
+import Loading from "./Loading";
 
 export default function AuthCallbackScreen() {
   const { theme } = useTheme();
@@ -138,21 +139,14 @@ export default function AuthCallbackScreen() {
         <div className="text-center px-6">
           {status === "loading" && (
             <>
-              <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+              <Loading size="lg" color="emerald" message="Você será redirecionado em instantes" />
               <h2
-                className={`text-xl font-semibold mb-2 ${
+                className={`text-xl font-semibold mt-4 ${
                   theme === "dark" ? "text-white" : "text-zinc-900"
                 }`}
               >
                 Autenticando...
               </h2>
-              <p
-                className={`text-sm ${
-                  theme === "dark" ? "text-zinc-400" : "text-zinc-600"
-                }`}
-              >
-                Você será redirecionado em instantes
-              </p>
             </>
           )}
 
