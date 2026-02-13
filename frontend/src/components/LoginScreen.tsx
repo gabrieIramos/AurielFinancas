@@ -75,18 +75,6 @@ export default function LoginScreen({ onLoginSuccess, onBackToOnboarding, onSign
   return (
     <div className={`min-h-screen ${theme === "dark" ? "bg-black" : "bg-white"} flex flex-col`}>
       <div className="mx-auto w-full max-w-[430px] min-h-screen flex flex-col">
-        {/* Header */}
-        <div className="pt-6 px-6">
-          <button
-            onClick={onBackToOnboarding}
-            className={`p-2 rounded-full ${
-              theme === "dark" ? "hover:bg-zinc-900" : "hover:bg-zinc-100"
-            } transition-colors`}
-          >
-            <ArrowLeft className={`w-6 h-6 ${theme === "dark" ? "text-white" : "text-black"}`} />
-          </button>
-        </div>
-
         {/* Content */}
         <div className="flex-1 flex flex-col justify-center px-6 py-8">
           <motion.div

@@ -1,15 +1,18 @@
-import { Eye, EyeOff, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Eye, EyeOff, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight, AlertTriangle, Sparkles } from "lucide-react";
 import { useState, useEffect } from "react";
 import { LineChart, Line, PieChart, Pie, Cell, BarChart, Bar, ResponsiveContainer, XAxis, YAxis, Tooltip } from "recharts";
 import { useTheme } from "../contexts/ThemeContext";
 import { useAuth } from "../contexts/AuthContext";
 import { dashboardService, DashboardData } from "../services/dashboard.service";
+import { aiService, FinancialKPIs, AIInitialInsights } from "../services/ai.service";
 import Loading from "./Loading";
 
 export default function HomeScreen() {
   const [showValues, setShowValues] = useState(true);
   const [loading, setLoading] = useState(true);
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [kpis, setKpis] = useState<FinancialKPIs | null>(null);
+  const [insights, setInsights] = useState<AIInitialInsights | null>(null);
   const { theme } = useTheme();
   const { user } = useAuth();
 
@@ -22,6 +25,13 @@ export default function HomeScreen() {
       setLoading(true);
       const data = await dashboardService.getDashboardData(user?.name);
       setDashboardData(data);
+
+      // Carregar KPIs e insights da IA em paralelo
+      const collectedKpis = await aiService.collectKPIs();
+      setKpis(collectedKpis);
+      
+      const generatedInsights = await aiService.generateInitialInsights(collectedKpis);
+      setInsights(generatedInsights);
     } catch (error) {
       console.error('Erro ao carregar dados do dashboard:', error);
     } finally {
@@ -473,6 +483,120 @@ export default function HomeScreen() {
                 <div className="text-center">
                   <EyeOff className="w-8 h-8 mx-auto mb-2" />
                   <p className="text-sm">Valores ocultos</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* AI Insights Section */}
+      {insights && (
+        <div className="px-4 mt-8">
+          <div className="mb-6">
+            <div className="flex items-center gap-2 mb-4">
+              <Sparkles className="w-6 h-6 text-purple-500" />
+              <h2 className="text-xl">Insights com IA</h2>
+            </div>
+
+            {/* Alertas e Oportunidades */}
+            {insights.alertas.length > 0 && (
+              <div className="mb-6">
+                <h3 className="mb-3 text-sm font-medium">Alertas e Oportunidades</h3>
+                <div className="space-y-3">
+                  {insights.alertas.map((alerta) => (
+                    <div
+                      key={alerta.id}
+                      className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4 border-l-4 ${
+                        alerta.tipo === "alerta" ? "border-yellow-500" : "border-emerald-500"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-full ${
+                          alerta.tipo === "alerta" ? "bg-yellow-500/10" : "bg-emerald-500/10"
+                        }`}>
+                          {alerta.tipo === "alerta" ? (
+                            <AlertTriangle className={`w-4 h-4 text-yellow-500`} />
+                          ) : (
+                            <TrendingUp className="w-4 h-4 text-emerald-500" />
+                          )}
+                        </div>
+                        <div className="flex-1">
+                          <p className={`text-sm font-medium ${theme === "dark" ? "text-zinc-200" : "text-zinc-800"}`}>
+                            {alerta.titulo}
+                          </p>
+                          <p className={`text-xs mt-1 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
+                            {alerta.descricao}
+                          </p>
+                          {alerta.valor && (
+                            <p className={`text-xs mt-2 font-medium ${
+                              alerta.tipo === "alerta" ? "text-yellow-500" : "text-emerald-500"
+                            }`}>
+                              {alerta.valor}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Análise de Risco */}
+            {insights.analiseRisco.length > 0 && (
+              <div className="mb-6">
+                <h3 className="mb-3 text-sm font-medium">Análise de Risco</h3>
+                <div className="space-y-3">
+                  {insights.analiseRisco.map((risco) => (
+                    <div
+                      key={risco.id}
+                      className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <p className={`text-sm font-medium ${theme === "dark" ? "text-zinc-200" : "text-zinc-800"}`}>
+                          {risco.titulo}
+                        </p>
+                        <span className={`text-xs px-2 py-1 rounded-full ${
+                          risco.nivel === "alto" ? "bg-red-500/20 text-red-400" :
+                          risco.nivel === "medio" ? "bg-yellow-500/20 text-yellow-400" :
+                          "bg-green-500/20 text-green-400"
+                        }`}>
+                          {risco.nivel === "alto" ? "Alto" : risco.nivel === "medio" ? "Médio" : "Baixo"}
+                        </span>
+                      </div>
+                      <p className={`text-xs ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
+                        {risco.descricao}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sugestões Personalizadas */}
+            {insights.sugestoes.length > 0 && (
+              <div>
+                <h3 className="mb-3 text-sm font-medium">Sugestões Personalizadas</h3>
+                <div className="space-y-3">
+                  {insights.sugestoes.map((sugestao) => (
+                    <div
+                      key={sugestao.id}
+                      className={`${theme === "dark" ? "bg-zinc-900" : "bg-zinc-50"} rounded-xl p-4 border-l-4 border-purple-500`}
+                    >
+                      <p className={`text-sm font-medium ${theme === "dark" ? "text-zinc-200" : "text-zinc-800"}`}>
+                        {sugestao.titulo}
+                      </p>
+                      <p className={`text-xs mt-1 ${theme === "dark" ? "text-zinc-400" : "text-zinc-600"}`}>
+                        {sugestao.descricao}
+                      </p>
+                      {sugestao.valor && (
+                        <p className="text-xs mt-2 font-medium text-purple-500">
+                          {sugestao.valor}
+                        </p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
